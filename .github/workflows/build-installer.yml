@@ -1,0 +1,216 @@
+name: Build Windows installer
+
+# Builds the packaged app and the installer on a Windows runner. When the
+# signing secrets are present the exe and the setup are signed, and a release
+# tag fails instead of publishing unsigned binaries. A `v*` tag then publishes
+# the signed setup exe as a GitHub Release asset; branches and pull requests
+# keep it as a workflow artifact only. A release tag must name the same version
+# as APP_VERSION in desktop.py, so the exe in a release is the version it says.
+#
+# Repository secrets:
+#   FREEBUFF_SIGN_PFX_BASE64       the .pfx file, base64-encoded
+#   FREEBUFF_SIGN_PFX_PASSWORD     its password
+#
+# Create the first with (PowerShell):
+#   [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\certs\freebuff.pfx"))
+# Never commit the .pfx itself. Without the secrets the workflow still builds,
+# but the artifact is unsigned and Windows will call it an unknown publisher.
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    env:
+      SIGN_PFX_BASE64: ${{ secrets.FREEBUFF_SIGN_PFX_BASE64 }}
+      FREEBUFF_SIGN_PFX_PASSWORD: ${{ secrets.FREEBUFF_SIGN_PFX_PASSWORD }}
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # A release tag names the version that is inside the exe, so it has to
+      # match APP_VERSION; otherwise a v1.7 tag could ship a 1.6 binary.
+      - name: Check the tag matches APP_VERSION
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Tag and APP_VERSION may be written differently (v1.6, v1.6.0,
+          # v1.6.0.0, v1.6.0-beta.1), so compare them as numbers.
+          function Get-VersionKey([string]$value, [string]$label) {
+            $core = ($value -replace '^[vV]', '') -replace '[-+].*$', ''
+            $parts = $core.Split('.')
+            if ($parts.Count -lt 1 -or $parts.Count -gt 4) {
+              throw "$label '$value' is not a version like 1.6 or 1.6.0.1."
+            }
+            $numbers = @()
+            foreach ($part in $parts) {
+              if ($part -notmatch '^\d{1,5}$') {
+                throw "$label '$value' has a non-numeric part '$part'."
+              }
+              $numbers += [int]$part
+            }
+            while ($numbers.Count -lt 4) { $numbers += 0 }
+            return ($numbers -join '.')
+          }
+
+          $match = Select-String -Path 'desktop.py' -Pattern '^APP_VERSION = "([^"]+)"' | Select-Object -First 1
+          if (-not $match) { throw 'APP_VERSION not found in desktop.py.' }
+          $appVersion = $match.Matches[0].Groups[1].Value
+
+          $tagKey = Get-VersionKey $env:TAG 'tag'
+          $appKey = Get-VersionKey $appVersion 'APP_VERSION in desktop.py'
+          if ($tagKey -ne $appKey) {
+            throw "Tag $($env:TAG) is version $tagKey, but APP_VERSION in desktop.py is $appVersion ($appKey). Bump APP_VERSION (and installer\version_info.txt, installer\FreebuffDictate.nsi), commit, then tag again."
+          }
+          "Tag $($env:TAG) matches APP_VERSION $appVersion." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          Write-Host "Tag $($env:TAG) matches APP_VERSION $appVersion."
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      # The exe's Windows version resource repeats APP_VERSION by hand; a stale
+      # version_info.txt would build an exe labelled with an old version.
+      - name: Check version metadata
+        run: python installer/version.py --check
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+
+      - name: Byte-compile
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -File -Path . -Include *.py, *.pyw
+          foreach ($file in $files) {
+            python -m py_compile $file.FullName
+            if ($LASTEXITCODE -ne 0) { throw "$($file.Name) does not compile" }
+          }
+          Write-Host "Compiled $($files.Count) files."
+
+      - name: Write the signing certificate
+        if: env.SIGN_PFX_BASE64 != ''
+        shell: pwsh
+        run: |
+          $path = Join-Path $env:RUNNER_TEMP 'freebuff-signing.pfx'
+          $bytes = [Convert]::FromBase64String($env:SIGN_PFX_BASE64)
+          [IO.File]::WriteAllBytes($path, $bytes)
+          "FREEBUFF_SIGN_PFX=$path" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Signing certificate written ($($bytes.Length) bytes)."
+
+      # The self-test suite loads Whisper models, so CI only byte-compiles and
+      # builds; run .\build-installer.ps1 locally (without -SkipTests) for the
+      # model-heavy checks.
+      - name: Build the app and installer
+        shell: pwsh
+        run: |
+          if ($env:FREEBUFF_SIGN_PFX) {
+            if (-not $env:FREEBUFF_SIGN_PFX_PASSWORD) {
+              throw 'FREEBUFF_SIGN_PFX_BASE64 is set but FREEBUFF_SIGN_PFX_PASSWORD is missing.'
+            }
+            ./build-installer.ps1 -SkipTests -RequireSignature
+          } elseif ("${{ github.ref_type }}" -eq 'tag') {
+            throw 'Release tags must be signed: set FREEBUFF_SIGN_PFX_BASE64 and FREEBUFF_SIGN_PFX_PASSWORD.'
+          } else {
+            Write-Warning 'No signing certificate configured; the installer will be unsigned.'
+            ./build-installer.ps1 -SkipTests
+          }
+
+      - name: Check the signature
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem 'dist\Freebuff-Dictate-Setup-*.exe' | Select-Object -First 1
+          if (-not $setup) { throw 'No installer was produced.' }
+          $signature = Get-AuthenticodeSignature $setup.FullName
+          $exe = Get-AuthenticodeSignature 'dist\Freebuff Dictate\Freebuff Dictate.exe'
+
+          @(
+            '### Freebuff Dictate installer'
+            ''
+            '| File | Status | Signer | Timestamped |'
+            '| --- | --- | --- | --- |'
+            "| $($setup.Name) | $($signature.Status) | $($signature.SignerCertificate.Subject) | $($null -ne $signature.TimeStamperCertificate) |"
+            "| Freebuff Dictate.exe | $($exe.Status) | $($exe.SignerCertificate.Subject) | $($null -ne $exe.TimeStamperCertificate) |"
+          ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+          if ($env:FREEBUFF_SIGN_PFX) {
+            if ($signature.Status -ne 'Valid' -or $exe.Status -ne 'Valid') {
+              throw "The signature is not valid: setup=$($signature.Status) exe=$($exe.Status). Check the certificate chain."
+            }
+            Write-Host "Signed by: $($signature.SignerCertificate.Subject)"
+          } else {
+            Write-Host 'Unsigned build (no certificate secret).'
+          }
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Freebuff-Dictate-Setup
+          path: dist/Freebuff-Dictate-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+  # Publishing needs contents: write, which the build job deliberately lacks.
+  release:
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download the signed installer
+        uses: actions/download-artifact@v4
+        with:
+          name: Freebuff-Dictate-Setup
+          path: release
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mapfile -t assets < <(find release -name '*.exe' -type f | sort)
+          if [ ${#assets[@]} -eq 0 ]; then
+            echo "No installer found in the build artifact." >&2
+            exit 1
+          fi
+          printf 'Attaching: %s\n' "${assets[@]}"
+
+          flags=(--title "Freebuff Dictate $TAG" --generate-notes)
+          # v1.7.0-beta.1 and similar are published as pre-releases.
+          if [[ "$TAG" == *-* ]]; then flags+=(--prerelease); fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # Re-running the job for the same tag replaces the asset.
+            gh release upload "$TAG" "${assets[@]}" --clobber
+          else
+            gh release create "$TAG" "${assets[@]}" "${flags[@]}"
+          fi
+
+      - name: Show the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release view "$TAG" --json tagName,url,isPrerelease,assets \
+          --template '{{.tagName}} {{.url}} prerelease={{.isPrerelease}}{{"\n"}}{{range .assets}}{{.name}} ({{.size}} bytes){{"\n"}}{{end}}'

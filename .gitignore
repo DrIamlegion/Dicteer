@@ -1,0 +1,27 @@
+# Per-user runtime data: settings, dictation history, learned corrections,
+# the encrypted API key and logs. None of this belongs in version control.
+config.json
+history.json
+history.json.corrupt
+credentials.json
+ui-state.json
+dictate.lock
+crash-run.json
+*.log
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Build output
+build/
+dist/
+
+# Downloaded toolchains and Whisper models (hundreds of MB)
+tools/
+models/
+
+# Local screenshots and ad-hoc recordings
+screen_*.png
+recording*.wav

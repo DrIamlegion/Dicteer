@@ -1,0 +1,15 @@
+faster-whisper==1.2.1
+# PyAV 16+ removed the `metadata_errors` kwarg that faster-whisper 1.2.1 still
+# passes, so `import` works but every transcription raises TypeError. 15.1.0 is
+# the newest release that still accepts it.
+av==15.1.0
+sounddevice==0.5.6
+pynput==1.8.2
+pystray==0.19.5
+pillow==13.0.0
+pyperclip==1.11.0
+numpy==2.5.4
+# The window. Edge WebView2 (present on Windows 10/11) is the renderer, and
+# pythonnet is what pywebview uses for its WinForms host.
+pywebview==6.2.1
+pythonnet==3.2.1

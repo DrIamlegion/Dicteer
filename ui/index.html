@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freebuff Dictate</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 1 0-7 0v6A3.5 3.5 0 0 0 12 15Z" fill="currentColor"/><path d="M5.8 11.2a6.2 6.2 0 0 0 12.4 0M12 17.4V21m-3.4 0h6.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </div>
+      <div class="brand-copy">
+        <div class="brand-name">Freebuff Dictate</div>
+        <div class="brand-sub" id="brand-sub">Nederlands · offline</div>
+      </div>
+    </div>
+
+    <nav class="nav" aria-label="Hoofdmenu">
+      <button class="nav-item is-active" data-view="dictate">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 1 0-7 0v6A3.5 3.5 0 0 0 12 15Z" fill="currentColor"/><path d="M5.8 11.2a6.2 6.2 0 0 0 12.4 0M12 17.4V21" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <span>Dicteren</span>
+        <span class="nav-live" id="nav-live" hidden></span>
+      </button>
+      <button class="nav-item" data-view="history">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3.5 4.5V9h4.5"/><path d="M12 8v4.5l3 1.7"/></svg>
+        <span>Geschiedenis</span>
+        <span class="nav-badge" id="history-count" hidden>0</span>
+      </button>
+      <button class="nav-item" data-view="settings">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.32a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.64 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.64h.05A1.7 1.7 0 0 0 10.08 3.1V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.36 9v.05a1.7 1.7 0 0 0 1.54 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03Z"/></svg>
+        <span>Instellingen</span>
+      </button>
+      <button class="nav-item" data-view="about">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><circle cx="12" cy="7.9" r="0.9" fill="currentColor" stroke="none"/></svg>
+        <span>Over</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="hotkey-row">
+        <div>
+          <div class="hotkey-title">Sneltoets</div>
+          <div class="hotkey-value" id="hotkey-side">F9</div>
+        </div>
+        <label class="toggle compact" title="Sneltoets aan of uit">
+          <input type="checkbox" id="listening-toggle" checked>
+          <span class="switch"></span>
+          <span class="sr-only">Sneltoets actief</span>
+        </label>
+      </div>
+      <div class="status-pill" id="status-pill">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-label">Klaar</span>
+      </div>
+      <div class="chips">
+        <span class="chip" id="chip-model">small</span>
+        <span class="chip" id="chip-language">nl</span>
+      </div>
+      <button class="link-button" id="quit-button">Afsluiten</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="crash-notice mic-notice" id="mic-notice" role="alert" hidden>
+      <span class="crash-notice-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 1 0-7 0v6A3.5 3.5 0 0 0 12 15Z"/><path d="M5.8 11.2a6.2 6.2 0 0 0 9.7 5.2M18.2 11.2a6.2 6.2 0 0 1-.7 2.8M12 17.4V21m-3.4 0h6.8"/><path d="m4 4 16 16"/></svg>
+      </span>
+      <div class="crash-notice-copy">
+        <strong>De gekozen microfoon is niet aangesloten.</strong>
+        <span id="mic-notice-detail">Sluit hem aan of kies een andere microfoon.</span>
+      </div>
+      <div class="crash-notice-actions">
+        <button class="ghost-button mini" id="mic-notice-settings">Microfoon kiezen</button>
+      </div>
+    </div>
+
+    <div class="crash-notice" id="crash-notice" role="alert" hidden>
+      <span class="crash-notice-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v4.6"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg>
+      </span>
+      <div class="crash-notice-copy">
+        <strong>De vorige keer is Freebuff Dictate onverwacht gestopt.</strong>
+        <span id="crash-notice-detail">De foutmelding staat in crash.log.</span>
+      </div>
+      <div class="crash-notice-actions">
+        <button class="ghost-button mini" id="crash-notice-open">Crashlog openen</button>
+        <button class="icon-button" id="crash-notice-dismiss" title="Melding sluiten" aria-label="Melding sluiten">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="crash-notice storage-notice" id="storage-notice" role="alert" hidden>
+      <span class="crash-notice-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v4.6"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg>
+      </span>
+      <div class="crash-notice-copy">
+        <strong>Niet alle opgeslagen gegevens konden worden gelezen.</strong>
+        <span id="storage-notice-detail">Controleer de map van de app.</span>
+      </div>
+      <div class="crash-notice-actions">
+        <button class="icon-button" id="storage-notice-dismiss" title="Melding sluiten" aria-label="Melding sluiten">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ------------------------------------------------------------ dicteren -->
+    <div class="view is-active" data-view="dictate">
+      <header class="page-head">
+        <div>
+          <h1>Dicteren</h1>
+          <p class="muted">Spreek, laat los, en de tekst verschijnt waar je aan het typen was.</p>
+        </div>
+        <button class="ghost-button" id="open-settings">Instellingen</button>
+      </header>
+
+      <section class="hero" id="hero">
+        <div class="hero-copy">
+          <div class="status-kicker" id="status-kicker">Klaar om te dicteren</div>
+          <div class="status-hint" id="status-hint">Houd <kbd>F9</kbd> ingedrukt terwijl je spreekt.</div>
+          <div class="hero-meta">
+            <span class="mini-chip" id="device-chip">Standaardmicrofoon</span>
+            <span class="mini-chip" id="mode-chip">Plakken</span>
+          </div>
+        </div>
+        <div class="hero-action">
+          <button class="mic-button" id="record-button" title="Opnemen of stoppen">
+            <span class="mic-halo" aria-hidden="true"></span>
+            <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 1 0-7 0v6A3.5 3.5 0 0 0 12 15Z" fill="currentColor"/><path d="M5.8 11.2a6.2 6.2 0 0 0 12.4 0M12 17.4V21m-3.4 0h6.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </button>
+          <span class="mic-caption" id="record-label">Opnemen</span>
+        </div>
+      </section>
+
+      <section class="card live-card" id="live-card">
+        <div class="card-head">
+          <h2>Live tekst</h2>
+          <div class="live-tools">
+            <span class="rec-time" id="timer" hidden>0:00</span>
+            <div class="meter" id="meter" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <button class="ghost-button mini" id="copy-live" hidden>Kopiëren</button>
+          </div>
+        </div>
+        <p class="transcript" id="transcript">
+          <span class="placeholder">Je woorden verschijnen hier terwijl je spreekt.</span>
+        </p>
+        <div class="live-foot">
+          <span id="live-count">0 woorden</span>
+          <span class="sep">·</span>
+          <span id="live-note">De definitieve tekst wordt na het loslaten geplakt.</span>
+        </div>
+      </section>
+
+      <div class="stat-row" id="stat-row">
+        <div class="stat">
+          <span class="stat-value" id="stat-count">0</span>
+          <span class="stat-label">dictaten vandaag</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="stat-words">0</span>
+          <span class="stat-label">woorden vandaag</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="stat-time">0 s</span>
+          <span class="stat-label">spreektijd vandaag</span>
+        </div>
+      </div>
+
+      <section class="card recent-card">
+        <div class="card-head">
+          <h2>Recent</h2>
+          <button class="link-button" id="open-history">Alles bekijken</button>
+        </div>
+        <div class="recent-list" id="recent-list"></div>
+        <div class="recent-empty" id="recent-empty">
+          Nog niets gedicteerd. Houd <kbd id="hotkey-kbd">F9</kbd> ingedrukt om te beginnen.
+        </div>
+      </section>
+
+      <section class="tips">
+        <div class="tip">
+          <span class="tip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 10 5 14l4 4"/><path d="M5 14h9a4 4 0 0 0 0-8h-2"/></svg>
+          </span>
+          <div><strong>Direct plakken</strong><span>Na het loslaten staat de zin in het venster met focus.</span></div>
+        </div>
+        <div class="tip">
+          <span class="tip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4.5" width="18" height="13" rx="2.5"/><path d="M9 21h6M12 17.5V21"/></svg>
+          </span>
+          <div><strong>Altijd bereikbaar</strong><span>Sluit dit venster gerust; de tray blijft luisteren.</span></div>
+        </div>
+        <div class="tip">
+          <span class="tip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v6c0 4.2 3 7.7 7 9 4-1.3 7-4.8 7-9V6l-7-3Z"/><path d="m9 12 2.2 2.2L15.5 10"/></svg>
+          </span>
+          <div><strong>Standaard offline</strong><span>Je stem blijft thuis, tenzij je zelf het online model aanzet.</span></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- -------------------------------------------------------- geschiedenis -->
+    <div class="view" data-view="history">
+      <header class="page-head">
+        <div>
+          <h1>Geschiedenis</h1>
+          <p class="muted" id="history-summary">Alles wat je dicteerde, lokaal bewaard.</p>
+        </div>
+      </header>
+
+      <div class="toolbar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+          <input type="search" id="history-search" class="search" placeholder="Zoeken in geschiedenis" autocomplete="off">
+        </div>
+        <button class="ghost-button danger" id="history-clear">Alles wissen</button>
+      </div>
+
+      <div class="history-list" id="history-list"></div>
+      <div class="empty-state" id="history-empty" hidden>
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4.6V9h4.4"/><path d="M12 8v4.4l3 1.8"/></svg>
+        </div>
+        <p id="history-empty-text">Nog geen dictaten. Houd <kbd>F9</kbd> ingedrukt om te beginnen.</p>
+      </div>
+    </div>
+
+    <!-- --------------------------------------------------------- instellingen -->
+    <div class="view" data-view="settings">
+      <header class="page-head">
+        <div>
+          <h1>Instellingen</h1>
+          <p class="muted">Wijzigingen gelden direct en worden bewaard in <code>config.json</code>.</p>
+        </div>
+      </header>
+
+      <div class="form-error" id="settings-error" hidden></div>
+
+      <section class="card form-card">
+        <div class="card-head">
+          <h2>Spraak</h2>
+          <span class="card-note" id="model-note"></span>
+        </div>
+        <div class="field-grid">
+          <label class="field">
+            <span>Taal</span>
+            <select id="set-language"></select>
+          </label>
+          <label class="field">
+            <span>Hoofdmodel</span>
+            <select id="set-model"></select>
+            <small id="model-hint">Bepaalt de tekst die geplakt wordt.</small>
+          </label>
+          <label class="field">
+            <span>Voorbeeldmodel</span>
+            <select id="set-preview-model"></select>
+            <small>Voor de live tekst tijdens het spreken.</small>
+          </label>
+          <label class="field">
+            <span>Microfoon</span>
+            <div class="key-field device-field">
+              <select id="set-device"></select>
+              <button class="ghost-button mini" id="refresh-devices" type="button">Vernieuwen</button>
+            </div>
+            <small id="device-hint">Kies dezelfde microfoon als in Windows → Geluid → Invoer.</small>
+          </label>
+          <label class="field">
+            <span>CPU-threads</span>
+            <input type="number" id="set-threads" min="1" max="16" step="1">
+          </label>
+          <label class="field">
+            <span>Beamgrootte</span>
+            <input type="number" id="set-beam" min="1" max="5" step="1">
+            <small>1 = snel, 5 = nauwkeuriger maar trager.</small>
+          </label>
+        </div>
+
+        <div class="mic-test">
+          <div class="mic-test-head">
+            <div>
+              <strong>Microfoon testen</strong>
+              <small>Neem twee seconden op om te horen of het volume goed staat.</small>
+            </div>
+            <button class="ghost-button" id="mic-test">Test 2 seconden</button>
+          </div>
+          <div class="level-track" id="mic-track"><div class="level-fill" id="mic-level"></div></div>
+          <div class="mic-result" id="mic-result">Nog niet getest.</div>
+        </div>
+
+        <label class="field wide">
+          <span>Eigen woorden en namen</span>
+          <textarea id="set-prompt" rows="2" placeholder="Freebuff, Codebuff, useEffect, WebSocket"></textarea>
+          <small>Helpt de spelling van namen, jargon en afkortingen.</small>
+        </label>
+      </section>
+
+      <section class="card form-card">
+        <div class="card-head">
+          <h2>Online model</h2>
+          <span class="card-note" id="cloud-note">lokaal</span>
+        </div>
+        <div class="field-grid">
+          <label class="field">
+            <span>Transcriptie</span>
+            <select id="set-backend">
+              <option value="local">Lokaal (offline)</option>
+              <option value="groq">Groq gratis (online)</option>
+            </select>
+            <small id="backend-hint">Lokaal blijft privé. Online is nauwkeuriger voor namen en jargon.</small>
+          </label>
+          <div class="field">
+            <span>Groq API-sleutel</span>
+            <div class="key-field">
+              <input type="password" id="set-cloud-key" placeholder="gsk_..." autocomplete="off" spellcheck="false">
+              <button class="ghost-button mini" id="save-cloud-key">Opslaan</button>
+            </div>
+            <small id="cloud-key-status">Geen sleutel opgeslagen.</small>
+          </div>
+        </div>
+        <div class="cloud-facts">
+          <strong>Gratis tier</strong>
+          <span id="cloud-limits">20 verzoeken/min · 2.000/dag · 7.200 audio-seconden/uur</span>
+        </div>
+        <p class="cloud-privacy">Alleen de audio van je laatste dictaat gaat naar Groq; het live voorbeeld blijft lokaal. Zonder sleutel of bij een fout valt de app terug op het lokale model. De sleutel wordt versleuteld met Windows DPAPI en nooit aan het venster teruggegeven. Maak er een op <code>console.groq.com/keys</code>.</p>
+        <div class="row-actions">
+          <button class="ghost-button mini danger" id="clear-cloud-key" hidden>Sleutel verwijderen</button>
+        </div>
+      </section>
+
+      <section class="card form-card">
+        <div class="card-head">
+          <h2>Bediening</h2>
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <span>Sneltoets</span>
+            <div class="hotkey-field" id="hotkey-field">
+              <input type="text" id="set-hotkey" readonly placeholder="Klik en druk een combinatie" aria-describedby="hotkey-hint">
+              <button class="ghost-button mini" id="hotkey-record">Opnemen</button>
+            </div>
+            <small id="hotkey-hint">Klik op het veld en druk de combinatie die je wilt gebruiken.</small>
+          </div>
+          <label class="field">
+            <span>Leveringswijze</span>
+            <select id="set-mode">
+              <option value="paste">Plakken (Ctrl+V)</option>
+              <option value="type">Tekens typen</option>
+              <option value="clipboard">Alleen klembord</option>
+            </select>
+            <small>Typen is trager maar werkt ook waar plakken geblokkeerd is.</small>
+          </label>
+        </div>
+        <div class="toggle-list">
+          <label class="toggle"><input type="checkbox" id="set-hold"><span class="switch"></span><span>Indrukken om te praten<small>Houd de sneltoets vast; loslaten plakt de tekst.</small></span></label>
+          <label class="toggle"><input type="checkbox" id="set-overlay"><span class="switch"></span><span>Live overlay<small>Klein venster boven de taakbalk als dit venster weg is.</small></span></label>
+          <label class="toggle"><input type="checkbox" id="set-stream"><span class="switch"></span><span>Live voorbeeld<small>Kost CPU tijdens het spreken. Uit = alleen na het loslaten.</small></span></label>
+          <label class="toggle"><input type="checkbox" id="set-beeps"><span class="switch"></span><span>Piepjes<small>Hoorbaar signaal bij start, stop en plakken.</small></span></label>
+          <label class="toggle"><input type="checkbox" id="set-space"><span class="switch"></span><span>Spatie na de tekst<small>Zo kun je direct doortypen.</small></span></label>
+          <label class="toggle"><input type="checkbox" id="set-clipboard"><span class="switch"></span><span>Klembord herstellen<small>Je oude klembord komt terug na het plakken.</small></span></label>
+        </div>
+      </section>
+
+      <section class="card form-card">
+        <div class="card-head">
+          <h2>Leren</h2>
+          <span class="card-note" id="learn-count"></span>
+        </div>
+        <p class="learn-intro">Bewerk een dictaat in <strong>Geschiedenis</strong>. De app onthoudt je spelling en gebruikt die bij de volgende opnames.</p>
+        <div class="toggle-list">
+          <label class="toggle"><input type="checkbox" id="set-learn"><span class="switch"></span><span>Leren van correcties<small>Alleen woorden die je zelf verbetert. Bestaande correcties blijven actief tot je ze hier vergeet.</small></span></label>
+        </div>
+        <div class="learn-body">
+          <div class="learn-block" id="learn-corrections-block" hidden>
+            <h3>Woordcorrecties</h3>
+            <div class="learn-list" id="learn-corrections"></div>
+          </div>
+          <div class="learn-block" id="learn-vocabulary-block" hidden>
+            <h3>Eigen woorden</h3>
+            <div class="learn-chips" id="learn-vocabulary"></div>
+          </div>
+          <div class="learn-empty" id="learn-empty">Nog niets geleerd. Bewerk een dictaat in Geschiedenis om te beginnen.</div>
+          <button class="ghost-button danger mini" id="learn-clear" hidden>Alles vergeten</button>
+        </div>
+      </section>
+
+      <section class="card form-card">
+        <div class="card-head"><h2>Systeem</h2></div>
+        <div class="toggle-list">
+          <label class="toggle"><input type="checkbox" id="set-autostart"><span class="switch"></span><span>Start met Windows<small>Zet een snelkoppeling in de opstartmap.</small></span></label>
+          <label class="toggle"><input type="checkbox" id="set-crash-log"><span class="switch"></span><span>Crashlog opslaan<small>Onverwachte fouten naar crash.log. Geen dicteertekst of sleutels.</small></span></label>
+        </div>
+        <div class="row-actions">
+          <button class="ghost-button" id="open-log">Logbestand openen</button>
+          <button class="ghost-button" id="open-crash-log">Crashlog openen</button>
+          <button class="ghost-button" id="open-folder">Map openen</button>
+        </div>
+        <p class="path-line" id="config-path"></p>
+      </section>
+
+      <div class="save-bar">
+        <div class="save-state" id="save-state"></div>
+        <button class="ghost-button" id="reset-settings">Herstel</button>
+        <button class="primary-button" id="save-settings">Opslaan</button>
+      </div>
+    </div>
+
+    <!-- ---------------------------------------------------------------- over -->
+    <div class="view" data-view="about">
+      <header class="page-head">
+        <div>
+          <h1>Over</h1>
+          <p class="muted">Dicteren voor elke Windows-app, Freebuff incluis — standaard volledig offline.</p>
+        </div>
+      </header>
+
+      <section class="card about-hero">
+        <div class="brand-mark large" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="30" height="30"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 1 0-7 0v6A3.5 3.5 0 0 0 12 15Z" fill="currentColor"/><path d="M5.8 11.2a6.2 6.2 0 0 0 12.4 0M12 17.4V21m-3.4 0h6.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </div>
+        <div>
+          <div class="about-title">Freebuff Dictate <span class="about-version" id="about-version">1.6</span></div>
+          <p class="muted small" id="about-pitch">Een kleine, snelle dicteerhulp. Lokaal met Whisper op je eigen computer; online met Groq als je dat zelf kiest.</p>
+        </div>
+      </section>
+
+      <section class="card form-card">
+        <div class="card-head"><h2>Deze installatie</h2></div>
+        <div class="about-grid">
+          <div><span class="muted">Transcriptie</span><strong id="about-engine">Lokaal (Whisper) · small</strong></div>
+          <div><span class="muted">Lokaal model</span><strong id="about-model">small</strong></div>
+          <div><span class="muted">Voorbeeldmodel</span><strong id="about-preview">base</strong></div>
+          <div><span class="muted">Taal</span><strong id="about-language">nl</strong></div>
+          <div><span class="muted">Sneltoets</span><strong id="about-hotkey">F9</strong></div>
+        </div>
+        <div class="about-lines">
+          <div><span class="muted">Modellen</span><code id="about-models">models</code></div>
+          <div><span class="muted">Instellingen</span><code id="about-config">config.json</code></div>
+          <div><span class="muted">Crashlog</span><code id="about-crash">crash.log</code></div>
+        </div>
+        <div class="row-actions">
+          <button class="ghost-button" id="open-log-2">Logbestand openen</button>
+          <button class="ghost-button" id="open-crash-log-2">Crashlog openen</button>
+          <button class="ghost-button" id="open-folder-2">Map openen</button>
+          <button class="ghost-button danger" id="quit-button-2">Afsluiten</button>
+        </div>
+      </section>
+
+      <section class="about-foot">
+        <p>Sneltoetsen: <kbd>F9</kbd> vasthouden om te praten · sluiten zet het venster in de tray.</p>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="toast-stack" id="toasts" aria-live="polite"></div>
+<script src="app.js"></script>
+</body>
+</html>
