@@ -1327,6 +1327,27 @@ def test_legacy_data_migration() -> None:
             check("an existing install is not overwritten", app.migrate_legacy_data() is None)
             check("the current config is untouched",
                   (new_dir / "config.json").read_text(encoding="utf-8") == '{"language": "nl"}')
+
+            # The app opens its log before this runs, so the target folder is
+            # never empty on a real first start; that must not look like data.
+            import shutil as _shutil
+            _shutil.rmtree(new_dir)
+            (new_dir / "models").mkdir(parents=True)
+            (new_dir / "dictate.log").write_text("starting\n", encoding="utf-8")
+            (new_dir / "dictate.lock").write_bytes(b"")
+            check("a log and a lock are not data", app._new_folder_in_use() is False)
+            moved = app.migrate_legacy_data()
+            check("a folder with only its own log still migrates", moved == old_dir, str(moved))
+            check("the 1.x settings arrive next to the fresh log",
+                  (new_dir / "config.json").read_text(encoding="utf-8") == '{"language": "en"}')
+            check("the fresh log is left alone",
+                  (new_dir / "dictate.log").read_text(encoding="utf-8") == "starting\n")
+
+            # A folder that already holds history is a real 2.x install.
+            old_dir.mkdir(parents=True)
+            (old_dir / "config.json").write_text('{"language": "en"}', encoding="utf-8")
+            (new_dir / "history.json").write_text('{"items": []}', encoding="utf-8")
+            check("a used 2.x folder is not taken over", app.migrate_legacy_data() is None)
         finally:
             app.DATA_DIR, app.FROZEN = saved[0], saved[1]
             if saved[2] is None:

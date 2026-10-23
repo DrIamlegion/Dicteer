@@ -523,7 +523,7 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.1.exe`:
 the status is `Valid` once Windows trusts the chain. Freshly issued OV
 certificates may still trip SmartScreen until the file has download
 reputation; EV certificates and Trusted Signing start with reputation.

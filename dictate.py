@@ -68,18 +68,36 @@ def legacy_data_dir() -> Path | None:
     return Path(base) / LEGACY_PRODUCT_NAME
 
 
+# The app opens its log (and, under the CLI, its lock) before this runs, so a
+# brand-new data folder is never literally empty. Those files are not data: a
+# folder is only "already in use" once it holds settings, history, learned
+# words, window placement or downloaded models.
+_NEW_FOLDER_DATA = ("config.json", "history.json", "learning.json", "ui-state.json")
+
+
+def _new_folder_in_use() -> bool:
+    for name in _NEW_FOLDER_DATA:
+        if (DATA_DIR / name).exists():
+            return True
+    models = DATA_DIR / "models"
+    try:
+        return models.is_dir() and any(models.iterdir())
+    except OSError:
+        return True
+
+
 def migrate_legacy_data() -> Path | None:
     """Move a 1.x data folder into ``%APPDATA%\\Dicteer`` once.
 
     Both folders live on the same drive, so each entry is renamed rather than
     copied - the models are several gigabytes. A new folder that already holds
-    anything is left alone, so this only ever runs on the first start after the
+    data is left alone, so this only ever runs on the first start after the
     rename. Returns the old folder when something was moved.
     """
     old = legacy_data_dir()
     if old is None or not old.is_dir():
         return None
-    if DATA_DIR.exists() and any(DATA_DIR.iterdir()):
+    if _new_folder_in_use():
         return None
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
