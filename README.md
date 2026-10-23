@@ -34,7 +34,9 @@ The delivered configuration is **Dutch**: `"language": "nl"`, the multilingual
 
 ## Install (Windows)
 
-Run **`Freebuff-Dictate-Setup-<version>.exe`** and follow the wizard. It
+Download **`Freebuff-Dictate-Setup-<version>.exe`** from
+[Releases](https://github.com/DrIamlegion/FreebuffDictate/releases), or build it
+yourself with `build-installer.cmd`, then run it and follow the wizard. It
 installs for the current user only - no administrator prompt, nothing
 machine-wide:
 
@@ -520,12 +522,13 @@ the setup afterwards with that tool instead of `sign.ps1`.
 On GitHub, [.github/workflows/build-installer.yml](.github/workflows/build-installer.yml)
 runs the same build on a Windows runner for pushes, pull requests and `v*`
 tags. It signs when the repository secrets `FREEBUFF_SIGN_PFX_BASE64` (the .pfx,
-base64-encoded) and `FREEBUFF_SIGN_PFX_PASSWORD` are set, refuses to build a
-tagged release without them, verifies the result, and uploads the setup exe as
-a workflow artifact. CI byte-compiles instead of running the model-heavy
-self-tests; run `build-installer.ps1` locally for those.
+base64-encoded) and `FREEBUFF_SIGN_PFX_PASSWORD` are set; without them the build
+is still published, and the release notes say the installer is unsigned and how
+to get past the SmartScreen prompt. It verifies the result and uploads the
+setup exe as a workflow artifact. CI byte-compiles instead of running the
+model-heavy self-tests; run `build-installer.ps1` locally for those.
 
-Pushing a tag such as `v1.7.0` also publishes the signed setup exe as an asset
+Pushing a tag such as `v1.7.0` also publishes the setup exe as an asset
 of a GitHub Release with generated notes; a tag with a suffix such as
 `v1.7.0-beta.1` becomes a pre-release. Re-running the job for an existing tag
 replaces its asset instead of failing. Releases are created with the workflow's

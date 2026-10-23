@@ -1,11 +1,12 @@
 name: Build Windows installer
 
 # Builds the packaged app and the installer on a Windows runner. When the
-# signing secrets are present the exe and the setup are signed, and a release
-# tag fails instead of publishing unsigned binaries. A `v*` tag then publishes
-# the signed setup exe as a GitHub Release asset; branches and pull requests
-# keep it as a workflow artifact only. A release tag must name the same version
-# as APP_VERSION in desktop.py, so the exe in a release is the version it says.
+# signing secrets are present the exe and the setup are signed; without them
+# the build still runs and a release says in its notes that the installer is
+# unsigned. A `v*` tag publishes the setup exe as a GitHub Release asset;
+# branches and pull requests keep it as a workflow artifact only. A release tag
+# must name the same version as APP_VERSION in desktop.py, so the exe in a
+# release is the version it says.
 #
 # Repository secrets:
 #   FREEBUFF_SIGN_PFX_BASE64       the .pfx file, base64-encoded
@@ -30,6 +31,10 @@ jobs:
   build:
     runs-on: windows-latest
     timeout-minutes: 45
+
+    # The release job says in its notes whether Windows will trust the exe.
+    outputs:
+      signed: ${{ steps.signature.outputs.signed }}
 
     env:
       SIGN_PFX_BASE64: ${{ secrets.FREEBUFF_SIGN_PFX_BASE64 }}
@@ -126,12 +131,22 @@ jobs:
               throw 'FREEBUFF_SIGN_PFX_BASE64 is set but FREEBUFF_SIGN_PFX_PASSWORD is missing.'
             }
             ./build-installer.ps1 -SkipTests -RequireSignature
-          } elseif ("${{ github.ref_type }}" -eq 'tag') {
-            throw 'Release tags must be signed: set FREEBUFF_SIGN_PFX_BASE64 and FREEBUFF_SIGN_PFX_PASSWORD.'
+            'SIGNED=true' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           } else {
-            Write-Warning 'No signing certificate configured; the installer will be unsigned.'
+            Write-Warning 'No signing certificate configured; the installer is unsigned and Windows will call it an unknown publisher.'
+            if ("${{ github.ref_type }}" -eq 'tag') {
+              Write-Warning 'Publishing this tag unsigned; add the signing secrets to publish a signed installer.'
+            }
             ./build-installer.ps1 -SkipTests
+            'SIGNED=false' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           }
+
+      - name: Record whether the build is signed
+        id: signature
+        shell: pwsh
+        run: |
+          $signed = $env:SIGNED -eq 'true'
+          "signed=$($signed.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Check the signature
         shell: pwsh
@@ -178,7 +193,7 @@ jobs:
       contents: write
 
     steps:
-      - name: Download the signed installer
+      - name: Download the installer
         uses: actions/download-artifact@v4
         with:
           name: Freebuff-Dictate-Setup
@@ -188,6 +203,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
+          SIGNED: ${{ needs.build.outputs.signed }}
         run: |
           set -euo pipefail
           mapfile -t assets < <(find release -name '*.exe' -type f | sort)
@@ -198,6 +214,11 @@ jobs:
           printf 'Attaching: %s\n' "${assets[@]}"
 
           flags=(--title "Freebuff Dictate $TAG" --generate-notes)
+          # --notes is prepended to the generated notes, so the downloader learns
+          # about the SmartScreen prompt before they run the file.
+          if [[ "$SIGNED" != 'true' ]]; then
+            flags+=(--notes 'This build is **unsigned**, so Windows SmartScreen shows an unknown publisher the first time you run it. Choose **More info** then **Run anyway**. Set FREEBUFF_SIGN_PFX_BASE64 and FREEBUFF_SIGN_PFX_PASSWORD in the repository secrets to publish a signed installer.')
+          fi
           # v1.7.0-beta.1 and similar are published as pre-releases.
           if [[ "$TAG" == *-* ]]; then flags+=(--prerelease); fi
 
