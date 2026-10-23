@@ -237,5 +237,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
-        run: gh release view "$TAG" --repo "$REPO" --json tagName,url,isPrerelease,assets \
-          --template '{{.tagName}} {{.url}} prerelease={{.isPrerelease}}{{"\n"}}{{range .assets}}{{.name}} ({{.size}} bytes){{"\n"}}{{end}}'
+        # A literal block keeps the backslash continuation; folded YAML would
+        # splice the expression into the --json argument.
+        run: |
+          gh release view "$TAG" --repo "$REPO" --json tagName,url,isPrerelease,assets \
+            --jq '"\(.tagName) \(.url) prerelease=\(.isPrerelease)\n" + ([.assets[] | "\(.name) (\(.size) bytes)"] | join("\n"))'
