@@ -15,6 +15,19 @@ uploaded, and the preview plus fallback stay local. See [Online model](#online-m
 The delivered configuration is **Dutch**: `"language": "nl"`, the multilingual
 `small` model for the text that gets pasted, and `base` for the live preview.
 
+**At a glance**
+
+* **Dictate anywhere** - hold `F9`, speak, release; the sentence is pasted into
+  the focused window of any Windows app.
+* **Runs on your PC** - Whisper via faster-whisper, no account and no audio
+  upload by default; the model is downloaded once.
+* **Live words** - a preview while you speak, in the window and in a small
+  overlay when the window is closed.
+* **Tray app** - closing the window keeps dictation running; per-user installer,
+  start with Windows, uninstaller that keeps or removes your data.
+* **Optional online model** - bring your own free Groq key for more accuracy;
+  the preview and the fallback stay local.
+
 ---
 
 ## Install (Windows)
@@ -616,3 +629,9 @@ keep that folder.
 (`C:\path\to\FreebuffDictate`). Nothing is installed system-wide - the venv,
 models, logs, window placement, learned corrections and the shortcut all live
 here or in the Startup folder.
+
+---
+
+## License
+
+[MIT](LICENSE) - use it, change it, ship it, sell it; keep the copyright notice.
