@@ -1,5 +1,5 @@
 #!/usr/bin/env pythonw
-"""Freebuff Dictate - application shell.
+"""Dicteer - application shell.
 
 Main thread: the window (pywebview). Worker thread: the tray icon. Engine
 threads: hotkey listener, preview pass, transcription. The window and the tray
@@ -65,7 +65,7 @@ class Shell:
         self.config_path = config_path
         self.debug = debug
         # Where config, history, models and logs live: the checkout folder, or
-        # %APPDATA%\Freebuff Dictate in the installed build.
+        # %APPDATA%\Dicteer in the installed build.
         self.data_dir = app.DATA_DIR
         self.log_path = app.LOG_PATH
         self.crash_log_path = Path(config_path).with_name("crash.log")
@@ -350,9 +350,9 @@ class Shell:
         self._tray_hint_shown = True
         try:
             self.icon.notify(
-                "Freebuff Dictate blijft op de achtergrond luisteren.\n"
+                "Dicteer blijft op de achtergrond luisteren.\n"
                 "Klik op het microfoonpictogram om dit venster terug te halen.",
-                "Freebuff Dictate",
+                "Dicteer",
             )
             log.info("tray hint shown")
         except Exception as exc:
@@ -406,13 +406,13 @@ class Shell:
 
     def _tooltip(self) -> str:
         if not self.dictator.listening:
-            return "Freebuff Dictate - sneltoets uit"
+            return "Dicteer - sneltoets uit"
         hotkey = self.hotkey_label()
         return {
-            "idle": f"Freebuff Dictate - houd {hotkey} ingedrukt om te praten",
-            "recording": "Freebuff Dictate - opnemen (laat los om te plakken)",
-            "transcribing": "Freebuff Dictate - omzetten...",
-        }.get(self.dictator.state, "Freebuff Dictate")
+            "idle": f"Dicteer - houd {hotkey} ingedrukt om te praten",
+            "recording": "Dicteer - opnemen (laat los om te plakken)",
+            "transcribing": "Dicteer - omzetten...",
+        }.get(self.dictator.state, "Dicteer")
 
     def _refresh_icon(self) -> None:
         icon = self.icon
@@ -544,9 +544,9 @@ class Shell:
         import pystray
 
         icon = pystray.Icon(
-            "freebuff-dictate",
+            "dicteer",
             self.image("off"),
-            "Freebuff Dictate - starten",
+            "Dicteer - starten",
             self.menu(),
         )
 
@@ -584,8 +584,8 @@ def focus_running_instance() -> None:
 
         ctypes.windll.user32.MessageBoxW(
             None,
-            "Freebuff Dictate draait al.\n\nKijk naar het microfoonpictogram in het systeemvak.",
-            "Freebuff Dictate",
+            "Dicteer draait al.\n\nKijk naar het microfoonpictogram in het systeemvak.",
+            "Dicteer",
             0x00000040,  # MB_ICONINFORMATION
         )
     except Exception:
@@ -601,6 +601,9 @@ def main() -> int:
     options, _unknown = parser.parse_known_args()
 
     app.setup_logging(options.verbose)
+    # First start after the rename: bring 1.x settings, history and models over
+    # before anything reads or writes them.
+    app.migrate_legacy_data()
     config_path = Path(options.config)
     crashlog.install(
         enabled=False,

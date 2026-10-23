@@ -1,18 +1,18 @@
-; Freebuff Dictate - Windows installer (NSIS 3).
+; Dicteer - Windows installer (NSIS 3).
 ;
 ; Per-user install: no administrator prompt, no UAC, no machine-wide files.
-; The program goes to %LOCALAPPDATA%\Programs\Freebuff Dictate, the app's own
-; data stays in %APPDATA%\Freebuff Dictate and is only removed when the user
+; The program goes to %LOCALAPPDATA%\Programs\Dicteer, the app's own
+; data stays in %APPDATA%\Dicteer and is only removed when the user
 ; asks for that during uninstall.
 ;
 ; Build with build-installer.ps1, or:
-;   makensis /DAPP_VERSION=1.7 /DAPP_FILEVERSION=1.7.0.0 installer\FreebuffDictate.nsi
+;   makensis /DAPP_VERSION=2.0 /DAPP_FILEVERSION=2.0.0.0 installer\Dicteer.nsi
 
 Unicode true
 SetCompressor /SOLID lzma
 SetCompressorDictSize 64
-Name "Freebuff Dictate"
-BrandingText "Freebuff Dictate"
+Name "Dicteer"
+BrandingText "Dicteer"
 
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
@@ -20,24 +20,27 @@ BrandingText "Freebuff Dictate"
 !include "x64.nsh"
 
 !ifndef APP_VERSION
-  !define APP_VERSION "1.7"
+  !define APP_VERSION "2.0"
 !endif
 !ifndef APP_FILEVERSION
-  !define APP_FILEVERSION "1.7.0.0"
+  !define APP_FILEVERSION "2.0.0.0"
 !endif
 
-!define APP_NAME "Freebuff Dictate"
-!define APP_EXE "Freebuff Dictate.exe"
-!define APP_PUBLISHER "Freebuff Dictate"
-!define APP_DATA_DIR "$APPDATA\Freebuff Dictate"
-!define APP_REGKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Freebuff Dictate"
+!define APP_NAME "Dicteer"
+!define APP_EXE "Dicteer.exe"
+!define APP_PUBLISHER "Dicteer"
+!define APP_DATA_DIR "$APPDATA\Dicteer"
+!define APP_REGKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Dicteer"
 ; build-installer.ps1 passes an absolute project root; the default works when
 ; makensis is started from the project folder.
 !ifndef PROJECT_ROOT
   !define PROJECT_ROOT ".."
 !endif
 !define ROOT "${PROJECT_ROOT}"
-!define SOURCE_DIR "${ROOT}\dist\Freebuff Dictate"
+!define SOURCE_DIR "${ROOT}\dist\Dicteer"
+
+; Set when a 1.x install (then named "Freebuff Dictate") started with Windows.
+Var HadLegacyAutostart
 
 VIProductVersion "${APP_FILEVERSION}"
 VIAddVersionKey "ProductName" "${APP_NAME}"
@@ -47,7 +50,7 @@ VIAddVersionKey "FileVersion" "${APP_VERSION}"
 VIAddVersionKey "CompanyName" "${APP_PUBLISHER}"
 VIAddVersionKey "LegalCopyright" "${APP_PUBLISHER}"
 
-OutFile "${ROOT}\dist\Freebuff-Dictate-Setup-${APP_VERSION}.exe"
+OutFile "${ROOT}\dist\Dicteer-Setup-${APP_VERSION}.exe"
 InstallDir "$LOCALAPPDATA\Programs\${APP_NAME}"
 InstallDirRegKey HKCU "Software\${APP_NAME}" "InstallDir"
 RequestExecutionLevel user
@@ -75,10 +78,10 @@ XPStyle on
 !insertmacro MUI_LANGUAGE "Dutch"
 !insertmacro MUI_LANGUAGE "English"
 
-LangString RunApp ${LANG_DUTCH} "Freebuff Dictate nu starten"
-LangString RunApp ${LANG_ENGLISH} "Start Freebuff Dictate now"
-LangString SecApp ${LANG_DUTCH} "Freebuff Dictate (vereist)"
-LangString SecApp ${LANG_ENGLISH} "Freebuff Dictate (required)"
+LangString RunApp ${LANG_DUTCH} "Dicteer nu starten"
+LangString RunApp ${LANG_ENGLISH} "Start Dicteer now"
+LangString SecApp ${LANG_DUTCH} "Dicteer (vereist)"
+LangString SecApp ${LANG_ENGLISH} "Dicteer (required)"
 LangString SecAppDesc ${LANG_DUTCH} "De app zelf: dicteren, instellingen, tray-pictogram. Ongeveer 300 MB."
 LangString SecAppDesc ${LANG_ENGLISH} "The app itself: dictation, settings, tray icon. About 300 MB."
 LangString SecDesktop ${LANG_DUTCH} "Snelkoppeling op het bureaublad"
@@ -89,18 +92,20 @@ LangString SecStartup ${LANG_DUTCH} "Starten wanneer ik inlog"
 LangString SecStartup ${LANG_ENGLISH} "Start when I sign in"
 LangString SecStartupDesc ${LANG_DUTCH} "Start de app verborgen in het systeemvak bij het inloggen. Later aan of uit te zetten in de app."
 LangString SecStartupDesc ${LANG_ENGLISH} "Starts the app hidden in the notification area at sign-in. Can be changed later in the app."
-LangString UninstallLink ${LANG_DUTCH} "Freebuff Dictate verwijderen"
-LangString UninstallLink ${LANG_ENGLISH} "Uninstall Freebuff Dictate"
-LangString Need64 ${LANG_DUTCH} "Freebuff Dictate vereist 64-bits Windows."
-LangString Need64 ${LANG_ENGLISH} "Freebuff Dictate requires 64-bit Windows."
-LangString NeedWebView2 ${LANG_DUTCH} "Freebuff Dictate gebruikt de Microsoft Edge WebView2-runtime voor zijn venster, en die lijkt niet aanwezig te zijn.$\r$\n$\r$\nWilt u de downloadpagina openen? De app kan zonder die runtime niet starten."
+LangString UninstallLink ${LANG_DUTCH} "Dicteer verwijderen"
+LangString UninstallLink ${LANG_ENGLISH} "Uninstall Dicteer"
+LangString Need64 ${LANG_DUTCH} "Dicteer vereist 64-bits Windows."
+LangString Need64 ${LANG_ENGLISH} "Dicteer requires 64-bit Windows."
+LangString NeedWebView2 ${LANG_DUTCH} "Dicteer gebruikt de Microsoft Edge WebView2-runtime voor zijn venster, en die lijkt niet aanwezig te zijn.$\r$\n$\r$\nWilt u de downloadpagina openen? De app kan zonder die runtime niet starten."
 
-LangString NeedWebView2 ${LANG_ENGLISH} "Freebuff Dictate uses the Microsoft Edge WebView2 runtime for its window, and it does not appear to be installed.$\r$\n$\r$\nDo you want to open the download page? The app cannot start without it."
+LangString NeedWebView2 ${LANG_ENGLISH} "Dicteer uses the Microsoft Edge WebView2 runtime for its window, and it does not appear to be installed.$\r$\n$\r$\nDo you want to open the download page? The app cannot start without it."
 
-LangString AskDeleteData ${LANG_DUTCH} "Wilt u ook uw dictaten, geschiedenis en instellingen verwijderen?$\r$\n$\r$\nJa verwijdert %APPDATA%\Freebuff Dictate definitief (geschiedenis, leerresultaten, opgeslagen Groq-sleutel, Whisper-modellen).$\r$\nNee laat ze staan, zodat een volgende installatie ze weer gebruikt."
-LangString AskDeleteData ${LANG_ENGLISH} "Do you also want to delete your dictations, history and settings?$\r$\n$\r$\nYes permanently deletes %APPDATA%\Freebuff Dictate (history, learned corrections, stored Groq key, Whisper models).$\r$\nNo keeps them, so a later installation can reuse them."
-LangString UninstallRunning ${LANG_DUTCH} "Freebuff Dictate wordt afgesloten zodat de bestanden vervangen kunnen worden."
-LangString UninstallRunning ${LANG_ENGLISH} "Closing Freebuff Dictate so its files can be replaced."
+LangString AskDeleteData ${LANG_DUTCH} "Wilt u ook uw dictaten, geschiedenis en instellingen verwijderen?$\r$\n$\r$\nJa verwijdert %APPDATA%\Dicteer definitief (geschiedenis, leerresultaten, opgeslagen Groq-sleutel, Whisper-modellen).$\r$\nNee laat ze staan, zodat een volgende installatie ze weer gebruikt."
+LangString AskDeleteData ${LANG_ENGLISH} "Do you also want to delete your dictations, history and settings?$\r$\n$\r$\nYes permanently deletes %APPDATA%\Dicteer (history, learned corrections, stored Groq key, Whisper models).$\r$\nNo keeps them, so a later installation can reuse them."
+LangString UninstallRunning ${LANG_DUTCH} "Dicteer wordt afgesloten zodat de bestanden vervangen kunnen worden."
+LangString UninstallRunning ${LANG_ENGLISH} "Closing Dicteer so its files can be replaced."
+LangString RemovingLegacy ${LANG_DUTCH} "De oude versie (Freebuff Dictate) wordt verwijderd; uw gegevens blijven bewaard."
+LangString RemovingLegacy ${LANG_ENGLISH} "Removing the old Freebuff Dictate install; your data is kept."
 
 ; --------------------------------------------------------------------------
 ; install
@@ -143,6 +148,24 @@ Section "$(SecApp)" SEC_APP
   SetShellVarContext current
   Call StopRunningApp
 
+  ; A 1.x install used the old product name and would otherwise stay in Apps &
+  ; Features next to this one. Its silent uninstall keeps the user's data, which
+  ; the app moves into %APPDATA%\Dicteer on its first start. Remember whether it
+  ; started with Windows so that setting survives the rename too.
+  StrCpy $HadLegacyAutostart 0
+  IfFileExists "$SMSTARTUP\Freebuff Dictate.lnk" 0 legacy_startup_checked
+    StrCpy $HadLegacyAutostart 1
+  legacy_startup_checked:
+  Delete "$SMSTARTUP\Freebuff Dictate.lnk"
+  Delete "$DESKTOP\Freebuff Dictate.lnk"
+  IfFileExists "$LOCALAPPDATA\Programs\Freebuff Dictate\uninstall.exe" 0 legacy_done
+    DetailPrint "$(RemovingLegacy)"
+    nsExec::Exec '"$LOCALAPPDATA\Programs\Freebuff Dictate\uninstall.exe" /S'
+    Pop $0
+    Sleep 1500
+    RMDir /r "$LOCALAPPDATA\Programs\Freebuff Dictate"
+  legacy_done:
+
   SetOutPath "$INSTDIR"
   ; Old builds kept their Python libraries in _internal; removing it prevents
   ; leftovers from a previous version being loaded.
@@ -151,10 +174,13 @@ Section "$(SecApp)" SEC_APP
   File "${ROOT}\installer\default-config.json"
 
   ; First install only: seed the Dutch defaults the app is delivered with.
-  ; An existing config (upgrade, reinstall) is never touched.
+  ; An existing config (upgrade, reinstall) is never touched. When 1.x data is
+  ; waiting under the old name, leave this folder empty so that the app's own
+  ; migration can move everything across instead of finding a fresh config.
+  IfFileExists "$APPDATA\Dicteer\config.json" config_ready
   IfFileExists "$APPDATA\Freebuff Dictate\config.json" config_ready
-  CreateDirectory "$APPDATA\Freebuff Dictate"
-  CopyFiles /SILENT "$INSTDIR\default-config.json" "$APPDATA\Freebuff Dictate\config.json"
+  CreateDirectory "$APPDATA\Dicteer"
+  CopyFiles /SILENT "$INSTDIR\default-config.json" "$APPDATA\Dicteer\config.json"
   config_ready:
 
   WriteUninstaller "$INSTDIR\uninstall.exe"
@@ -162,6 +188,12 @@ Section "$(SecApp)" SEC_APP
   CreateDirectory "$SMPROGRAMS\${APP_NAME}"
   CreateShortCut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}" "" "$INSTDIR\${APP_EXE}" 0
   CreateShortCut "$SMPROGRAMS\${APP_NAME}\$(UninstallLink).lnk" "$INSTDIR\uninstall.exe"
+
+  ; Whoever started 1.x with Windows keeps that behaviour without ticking the
+  ; box again; the shortcut above was removed with the old install.
+  ${If} $HadLegacyAutostart == 1
+    CreateShortCut "$SMSTARTUP\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}" "--hidden" "$INSTDIR\${APP_EXE}" 0
+  ${EndIf}
 
   WriteRegStr HKCU "Software\${APP_NAME}" "InstallDir" "$INSTDIR"
 

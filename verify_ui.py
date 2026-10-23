@@ -138,7 +138,8 @@ def main() -> int:
                 check("page boots through the bridge", True)
                 check(
                     "the About card shows the current version",
-                    evaluate(window, "document.getElementById('about-version').textContent") == "1.6",
+                    evaluate(window, "document.getElementById('about-version').textContent") == tray.desktop.APP_VERSION,
+                    str(evaluate(window, "document.getElementById('about-version').textContent")),
                 )
                 check(
                     "the About text starts with the local mode",

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch-at-login support for Freebuff Dictate.
+"""Launch-at-login support for Dicteer.
 
 Windows has no registry-free API for this in the standard library, so the
 shortcut is written into the user's Startup folder through the shell's
@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parent
-LINK_NAME = "Freebuff Dictate.lnk"
+LINK_NAME = "Dicteer.lnk"
 ENTRY = APP_DIR / "tray.pyw"
 
 
@@ -79,7 +79,7 @@ def enable() -> Path:
         "$s.Arguments={args};"
         "$s.WorkingDirectory={cwd};"
         "$s.IconLocation={icon};"
-        "$s.Description='Freebuff Dictate - offline voice to text';"
+        "$s.Description='Dicteer - offline voice to text';"
         "$s.Save()"
     ).format(
         link=_ps_quote(str(link)),

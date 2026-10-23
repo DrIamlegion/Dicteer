@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Print Freebuff Dictate's version, or check the files that repeat it.
+"""Print Dicteer's version, or check the files that repeat it.
 
 `installer/version_info.txt` is the Windows version resource PyInstaller embeds
 in the exe. It stores the number in four places and cannot read it from
-`desktop.py`, so it can quietly drift and leave "Freebuff Dictate.exe" claiming
+`desktop.py`, so it can quietly drift and leave "Dicteer.exe" claiming
 an old version. `--check` compares those fields with `APP_VERSION`; the build
 scripts run it, so a stale resource fails instead of shipping.
 """

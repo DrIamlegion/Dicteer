@@ -1,4 +1,4 @@
-/* Freebuff Dictate - window front-end.
+/* Dicteer - window front-end.
  *
  * Talks to Python through window.pywebview.api (methods return promises) and
  * receives pushed events through window.dictate.push({type, value}). When the
@@ -20,7 +20,7 @@
     listening: true,
     current: "idle",
     hotkeyLabel: "F9",
-    version: "1.7",
+    version: "2.0",
     models: [],
     cloud: { backend: "local", has_key: false, model: "whisper-large-v3-turbo", free_limits: "", keys_url: "" },
     configPath: "",
@@ -1696,11 +1696,11 @@
             { id: "Microfoon (USB-headset)", name: "Microfoon (USB-headset)", label: "Microfoon (USB-headset)", index: 3, default: false, api: "Windows WASAPI", rate: 48000 },
           ],
           cloud: cloudPayload(),
-          autostart: false, hotkey_label: "F9", version: "1.7 (demo)",
+          autostart: false, hotkey_label: "F9", version: "2.0 (demo)",
           crash_log_path: "crash.log (demo)",
           models: MODEL_ORDER.concat(["tiny", "base", "small", "medium"].map((name) => `${name}.en`)),
-          model_dir: "C:\\Users\\gebruiker\\AppData\\Roaming\\Freebuff Dictate\\models",
-          config_path: "C:\\Users\\gebruiker\\AppData\\Roaming\\Freebuff Dictate\\config.json",
+          model_dir: "C:\\Users\\gebruiker\\AppData\\Roaming\\Dicteer\\models",
+          config_path: "C:\\Users\\gebruiker\\AppData\\Roaming\\Dicteer\\config.json",
         };
       },
       async toggle_record() {
@@ -1833,12 +1833,12 @@
         await new Promise((resolve) => setTimeout(resolve, 350));
         return {
           ok: true,
-          current: "1.7",
-          latest: "1.8.0",
+          current: "2.0",
+          latest: "2.1.0",
           available: true,
-          name: "Freebuff Dictate v1.8.0",
-          url: "https://github.com/DrIamlegion/FreebuffDictate/releases/tag/v1.8.0",
-          page: "https://github.com/DrIamlegion/FreebuffDictate/releases/latest",
+          name: "Dicteer v2.1.0",
+          url: "https://github.com/DrIamlegion/Dicteer/releases/tag/v2.1.0",
+          page: "https://github.com/DrIamlegion/Dicteer/releases/latest",
         };
       },
       async open_release() { return { ok: true }; },

@@ -16,11 +16,11 @@ import urllib.request
 
 log = logging.getLogger("dictate")
 
-REPO = "DrIamlegion/FreebuffDictate"
+REPO = "DrIamlegion/Dicteer"
 API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES_PAGE = f"https://github.com/{REPO}/releases/latest"
 TIMEOUT = 6.0
-USER_AGENT = "FreebuffDictate-update-check"
+USER_AGENT = "Dicteer-update-check"
 
 _VERSION = re.compile(r"^[vV]?(\d+(?:\.\d+){0,2})(?:[-+].*)?$")
 

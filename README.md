@@ -1,6 +1,6 @@
-# Freebuff Dictate
+# Dicteer
 
-![The Dictate view: ready to dictate, live text, today's stats](assets/screenshots/dictate.png)
+![The Dicteren view: ready to dictate, live text, today's stats](assets/screenshots/dictate.png)
 
 Offline-first voice-to-text for any Windows app — built so you can **talk to
 Freebuff instead of typing**. Hold a hotkey, speak, let go, and the sentence is
@@ -36,13 +36,13 @@ The delivered configuration is **Dutch**: `"language": "nl"`, the multilingual
 
 ## Install (Windows)
 
-Download **`Freebuff-Dictate-Setup-<version>.exe`** from
-[Releases](https://github.com/DrIamlegion/FreebuffDictate/releases), or build it
+Download **`Dicteer-Setup-<version>.exe`** from
+[Releases](https://github.com/DrIamlegion/Dicteer/releases), or build it
 yourself with `build-installer.cmd`, then run it and follow the wizard. It
 installs for the current user only - no administrator prompt, nothing
 machine-wide:
 
-* The program goes to `%LOCALAPPDATA%\Programs\Freebuff Dictate`, with a Start
+* The program goes to `%LOCALAPPDATA%\Programs\Dicteer`, with a Start
   Menu folder, an entry in **Apps & Features** and its own uninstaller.
 * A desktop shortcut and "start when I sign in" are checkboxes in the wizard.
   Both can be changed later from the app.
@@ -51,13 +51,21 @@ machine-wide:
 
 The installed app keeps everything it writes - `config.json`, history, learned
 corrections, the encrypted Groq key, logs and the downloaded Whisper models -
-in `%APPDATA%\Freebuff Dictate`, not in the program folder. Upgrading or
+in `%APPDATA%\Dicteer`, not in the program folder. Upgrading or
 uninstalling therefore never loses your data by accident, and **Map openen**
 and **Logbestand openen** in the app point at that folder.
 
 The first installation seeds that folder with the same Dutch configuration as
 this checkout (`language` `nl`, `small` model, `base` preview). Reinstalling or
 upgrading never overwrites an existing `config.json`.
+
+**Coming from Freebuff Dictate 1.x?** The app was renamed in 2.0 and takes its
+data along: the installer removes the old program entry (its silent uninstall
+keeps your data), and on first start Dicteer moves `config.json`, history,
+learned corrections, the encrypted Groq key and the downloaded models from
+`%APPDATA%\Freebuff Dictate` to `%APPDATA%\Dicteer`. A "start with Windows"
+setting carries over as well; dictations, settings and the key are never
+re-entered.
 
 Windows 11 and recent Windows 10 already include the Edge WebView2 runtime the
 window needs; the installer checks for it and offers the download when it is
@@ -70,7 +78,7 @@ installed build behaves the same, minus the console scripts.
 
 ## Quick start
 
-1. Double-click **`Freebuff Dictate.vbs`** (or the Start Menu entry, when
+1. Double-click **`Dicteer.vbs`** (or the Start Menu entry, when
    installed). The app window opens and a microphone icon appears in the
    notification area.
 2. Click into Freebuff's prompt box.
@@ -418,7 +426,7 @@ pasted is always produced from the full clip after you release the key.
 ## Commands
 
 ```bat
-Freebuff Dictate.vbs               the app: window + tray, no console
+Dicteer.vbs               the app: window + tray, no console
 dictate.bat                        console mode (no window, no tray icon)
 .venv\Scripts\pythonw.exe tray.pyw --settings   open the window on Settings
 .venv\Scripts\pythonw.exe tray.pyw --hidden     start in the tray only (login)
@@ -455,19 +463,19 @@ After `setup.ps1` has created the venv:
 ```bat
 build-installer.cmd                self-tests, then the app folder and installer
 build-installer.cmd -SkipTests     skip the test suite
-build-installer.cmd -ExeOnly       only dist\Freebuff Dictate\
+build-installer.cmd -ExeOnly       only dist\Dicteer\
 ```
 
 `build-installer.ps1` installs PyInstaller into the venv, builds
-`FreebuffDictate.spec`, and then compiles `installer\FreebuffDictate.nsi` with
+`Dicteer.spec`, and then compiles `installer\Dicteer.nsi` with
 NSIS. If `makensis.exe` is not installed, the script downloads NSIS 3.11 into
 `tools\` once - no admin rights needed for that either.
 
 Outputs:
 
-* `dist\Freebuff Dictate\Freebuff Dictate.exe` plus `_internal\` (about 300 MB,
+* `dist\Dicteer\Dicteer.exe` plus `_internal\` (about 300 MB,
   including CTranslate2, PyAV, WebView2 Python bindings and Tcl/Tk). Runs as-is.
-* `dist\Freebuff-Dictate-Setup-<version>.exe` (about 75 MB).
+* `dist\Dicteer-Setup-<version>.exe` (about 75 MB).
 
 The version comes from `APP_VERSION` in `desktop.py`; bump it there and in
 `installer\version_info.txt` when releasing. That file is the Windows version
@@ -493,7 +501,7 @@ EV code-signing certificate, or Microsoft's Azure Trusted Signing. A
 self-signed certificate signs the files but does *not* change the SmartScreen
 warning; it is only useful on machines that import its root certificate.
 
-The build signs both `Freebuff Dictate.exe` and the setup when a certificate is
+The build signs both `Dicteer.exe` and the setup when a certificate is
 configured:
 
 ```bat
@@ -515,14 +523,14 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Freebuff-Dictate-Setup-1.7.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.exe`:
 the status is `Valid` once Windows trusts the chain. Freshly issued OV
 certificates may still trip SmartScreen until the file has download
 reputation; EV certificates and Trusted Signing start with reputation.
 
 Hardware tokens sign through the thumbprint path (Windows asks for the PIN).
 Azure Trusted Signing needs Microsoft's `signtool` with its dlib: sign
-`dist\Freebuff Dictate\Freebuff Dictate.exe` before building the installer and
+`dist\Dicteer\Dicteer.exe` before building the installer and
 the setup afterwards with that tool instead of `sign.ps1`.
 
 On GitHub, [.github/workflows/build-installer.yml](.github/workflows/build-installer.yml)
@@ -544,7 +552,7 @@ token is needed. The build refuses a tag that does not name the same version as
 so a `v1.7` tag on a 1.6 build fails instead of shipping an exe that still says
 1.6. Bump `APP_VERSION` in `desktop.py` and the version in
 `installer\version_info.txt` before tagging; the NSIS fallback version in
-`installer\FreebuffDictate.nsi` and the User-Agent in `cloud.py` carry the same
+`installer\Dicteer.nsi` and the User-Agent in `cloud.py` carry the same
 number and should be bumped with them.
 
 ---
@@ -622,9 +630,9 @@ is removed on a normal quit.
 ## Start with Windows
 
 Tick **Start met Windows** in Settings (or in the tray menu). That creates
-`Freebuff Dictate.lnk` in
+`Dicteer.lnk` in
 `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup`, launching
-`pythonw tray.pyw --hidden` from a checkout, or `Freebuff Dictate.exe --hidden`
+`pythonw tray.pyw --hidden` from a checkout, or `Dicteer.exe --hidden`
 when installed - no console flash, no window at login, per-user only, no admin
 rights. The installer's "start when I sign in" checkbox writes the same
 shortcut. Untick it (or `autostart.py disable`) to remove the file again; that
@@ -633,13 +641,13 @@ is the whole feature.
 ## Uninstall
 
 **Installed:** open Windows Settings → Apps → Installed apps (or the Start Menu
-folder) and uninstall *Freebuff Dictate*. The program, shortcuts, login entry
+folder) and uninstall *Dicteer*. The program, shortcuts, login entry
 and registry entry are removed; you are then asked whether to delete
-`%APPDATA%\Freebuff Dictate` too. Silent uninstalls (`uninstall.exe /S`) always
+`%APPDATA%\Dicteer` too. Silent uninstalls (`uninstall.exe /S`) always
 keep that folder.
 
 **Checkout:** turn off the login toggle first, then delete this folder
-(`C:\path\to\FreebuffDictate`). Nothing is installed system-wide - the venv,
+(`C:\path\to\Dicteer`). Nothing is installed system-wide - the venv,
 models, logs, window placement, learned corrections and the shortcut all live
 here or in the Startup folder.
 

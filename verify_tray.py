@@ -19,8 +19,8 @@ APP = Path(__file__).resolve().parent
 PYW = APP / ".venv" / "Scripts" / "pythonw.exe"
 LOG = APP / "dictate.log"
 HOLD_KEY = "<ctrl>+<alt>+<shift>+<f12>"
-WINDOW_TITLE = "Freebuff Dictate"
-OVERLAY_TITLE = "Freebuff Dictate Overlay"
+WINDOW_TITLE = "Dicteer"
+OVERLAY_TITLE = "Dicteer Overlay"
 
 user32 = ctypes.windll.user32
 user32.GetClassNameW.argtypes = [wt.HWND, wt.LPWSTR, ctypes.c_int]

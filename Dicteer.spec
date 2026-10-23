@@ -1,11 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller recipe for the packaged Freebuff Dictate app.
+"""PyInstaller recipe for the packaged Dicteer app.
 
 One folder rather than one file: CTranslate2, PyAV, WebView2 bridging and Tk
 all ship native libraries, and a folder starts without unpacking ~300 MB into
 %TEMP% on every launch. The installer ships that folder.
 
-Build with ``build-installer.ps1`` (or ``pyinstaller FreebuffDictate.spec``).
+Build with ``build-installer.ps1`` (or ``pyinstaller Dicteer.spec``).
 """
 
 from pathlib import Path
@@ -13,7 +13,7 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_all
 
 ROOT = Path(SPECPATH)
-NAME = "Freebuff Dictate"
+NAME = "Dicteer"
 
 datas = [
     (str(ROOT / "ui"), "ui"),

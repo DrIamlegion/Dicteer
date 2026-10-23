@@ -1,6 +1,6 @@
 # Sign one or more files with an Authenticode code-signing certificate.
 #
-#   .\sign.ps1 -Path "dist\Freebuff Dictate\Freebuff Dictate.exe" -PfxPath C:\certs\freebuff.pfx
+#   .\sign.ps1 -Path "dist\Dicteer\Dicteer.exe" -PfxPath C:\certs\freebuff.pfx
 #   .\sign.ps1 -Path dist\setup.exe -CertThumbprint 1A2B3C...
 #
 # The fingerprint of the certificate and the result of the signature check are

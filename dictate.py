@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freebuff Dictate - push-to-dictate for any Windows app.
+"""Dicteer - push-to-dictate for any Windows app.
 
 Press the hotkey (default F9) to start recording, press it again to stop.
 The clip is transcribed locally by faster-whisper and the text is pasted
@@ -18,6 +18,7 @@ import json
 import logging
 import logging.handlers
 import os
+import shutil
 import sys
 import threading
 import time
@@ -31,25 +32,82 @@ def default_data_dir() -> Path:
     """Where config, history, logs and models live.
 
     A checkout keeps them next to the code. The installed build uses
-    ``%APPDATA%\\Freebuff Dictate`` instead: the program folder is shared
+    ``%APPDATA%\\Dicteer`` instead: the program folder is shared
     between users and protected, and keeping the data separate means an
     upgrade or uninstall cannot take the dictations with it. The environment
     variable exists so the packaged build can be exercised against a
     throwaway folder.
     """
-    override = os.environ.get("FREEBUFF_DICTATE_DATA")
+    override = os.environ.get("DICTEER_DATA") or os.environ.get("FREEBUFF_DICTATE_DATA")
     if override:
         return Path(override)
     if not FROZEN:
         return APP_DIR
     base = os.environ.get("APPDATA") or os.environ.get("LOCALAPPDATA")
-    return Path(base) / "Freebuff Dictate" if base else Path.home() / "Freebuff Dictate"
+    return Path(base) / "Dicteer" if base else Path.home() / "Dicteer"
 
 
 DATA_DIR = default_data_dir()
 CONFIG_PATH = DATA_DIR / "config.json"
 LOG_PATH = DATA_DIR / "dictate.log"
 MODEL_DIR = DATA_DIR / "models"
+
+# The app shipped as "Freebuff Dictate" up to 1.7 and kept its data under that
+# name. Renaming the product should not cost anyone their settings, history,
+# learned words, key or downloaded models.
+LEGACY_PRODUCT_NAME = "Freebuff Dictate"
+
+
+def legacy_data_dir() -> Path | None:
+    """The data folder the installed 1.x builds used, if there was one."""
+    if not FROZEN:
+        return None
+    base = os.environ.get("APPDATA") or os.environ.get("LOCALAPPDATA")
+    if not base:
+        return None
+    return Path(base) / LEGACY_PRODUCT_NAME
+
+
+def migrate_legacy_data() -> Path | None:
+    """Move a 1.x data folder into ``%APPDATA%\\Dicteer`` once.
+
+    Both folders live on the same drive, so each entry is renamed rather than
+    copied - the models are several gigabytes. A new folder that already holds
+    anything is left alone, so this only ever runs on the first start after the
+    rename. Returns the old folder when something was moved.
+    """
+    old = legacy_data_dir()
+    if old is None or not old.is_dir():
+        return None
+    if DATA_DIR.exists() and any(DATA_DIR.iterdir()):
+        return None
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        log.warning("could not prepare %s: %s", DATA_DIR, exc)
+        return None
+
+    moved = 0
+    for item in list(old.iterdir()):
+        target = DATA_DIR / item.name
+        if target.exists():
+            continue
+        try:
+            os.replace(item, target)
+        except OSError:
+            try:
+                shutil.move(str(item), str(target))
+            except OSError as exc:
+                log.warning("could not move %s from the old folder: %s", item.name, exc)
+                continue
+        moved += 1
+
+    try:
+        old.rmdir()
+    except OSError:
+        pass
+    log.info("moved %s item(s) from %s to %s", moved, old, DATA_DIR)
+    return old
 
 DEFAULT_CONFIG = {
     "hotkey": "<f9>",
@@ -1224,6 +1282,7 @@ def main() -> int:
         list_devices()
         return 0
 
+    migrate_legacy_data()
     cfg = load_config(Path(args.config))
     if args.model:
         cfg["model"] = args.model
@@ -1233,7 +1292,7 @@ def main() -> int:
     try:
         lock_handle = _acquire_single_instance()
     except RuntimeError:
-        log.error("Freebuff Dictate is already running.")
+        log.error("Dicteer is already running.")
         return 1
 
     dictator = Dictator(cfg, args)
@@ -1262,7 +1321,7 @@ def main() -> int:
 
         backend = str(cfg.get("online_backend") or "local")
         print("=" * 68)
-        print("  Freebuff Dictate - " + ("online via Groq" if backend != "local" else "offline") + " voice to text")
+        print("  Dicteer - " + ("online via Groq" if backend != "local" else "offline") + " voice to text")
         print(f"  hotkey: {cfg.get('hotkey')}   model: {cfg.get('model')}   "
               f"mode: {cfg.get('mode')}")
         print("  press the hotkey to start talking, press it again to paste")

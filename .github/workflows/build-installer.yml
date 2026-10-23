@@ -78,7 +78,7 @@ jobs:
           $tagKey = Get-VersionKey $env:TAG 'tag'
           $appKey = Get-VersionKey $appVersion 'APP_VERSION in desktop.py'
           if ($tagKey -ne $appKey) {
-            throw "Tag $($env:TAG) is version $tagKey, but APP_VERSION in desktop.py is $appVersion ($appKey). Bump APP_VERSION (and installer\version_info.txt, installer\FreebuffDictate.nsi), commit, then tag again."
+            throw "Tag $($env:TAG) is version $tagKey, but APP_VERSION in desktop.py is $appVersion ($appKey). Bump APP_VERSION (and installer\version_info.txt, installer\Dicteer.nsi), commit, then tag again."
           }
           "Tag $($env:TAG) matches APP_VERSION $appVersion." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
           Write-Host "Tag $($env:TAG) matches APP_VERSION $appVersion."
@@ -151,18 +151,18 @@ jobs:
       - name: Check the signature
         shell: pwsh
         run: |
-          $setup = Get-ChildItem 'dist\Freebuff-Dictate-Setup-*.exe' | Select-Object -First 1
+          $setup = Get-ChildItem 'dist\Dicteer-Setup-*.exe' | Select-Object -First 1
           if (-not $setup) { throw 'No installer was produced.' }
           $signature = Get-AuthenticodeSignature $setup.FullName
-          $exe = Get-AuthenticodeSignature 'dist\Freebuff Dictate\Freebuff Dictate.exe'
+          $exe = Get-AuthenticodeSignature 'dist\Dicteer\Dicteer.exe'
 
           @(
-            '### Freebuff Dictate installer'
+            '### Dicteer installer'
             ''
             '| File | Status | Signer | Timestamped |'
             '| --- | --- | --- | --- |'
             "| $($setup.Name) | $($signature.Status) | $($signature.SignerCertificate.Subject) | $($null -ne $signature.TimeStamperCertificate) |"
-            "| Freebuff Dictate.exe | $($exe.Status) | $($exe.SignerCertificate.Subject) | $($null -ne $exe.TimeStamperCertificate) |"
+            "| Dicteer.exe | $($exe.Status) | $($exe.SignerCertificate.Subject) | $($null -ne $exe.TimeStamperCertificate) |"
           ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
 
           if ($env:FREEBUFF_SIGN_PFX) {
@@ -177,8 +177,8 @@ jobs:
       - name: Upload the installer
         uses: actions/upload-artifact@v4
         with:
-          name: Freebuff-Dictate-Setup
-          path: dist/Freebuff-Dictate-Setup-*.exe
+          name: Dicteer-Setup
+          path: dist/Dicteer-Setup-*.exe
           if-no-files-found: error
           retention-days: 30
 
@@ -196,7 +196,7 @@ jobs:
       - name: Download the installer
         uses: actions/download-artifact@v4
         with:
-          name: Freebuff-Dictate-Setup
+          name: Dicteer-Setup
           path: release
 
       - name: Publish the GitHub Release
@@ -216,7 +216,7 @@ jobs:
           fi
           printf 'Attaching: %s\n' "${assets[@]}"
 
-          flags=(--title "Freebuff Dictate $TAG" --generate-notes)
+          flags=(--title "Dicteer $TAG" --generate-notes)
           # --notes is prepended to the generated notes, so the downloader learns
           # about the SmartScreen prompt before they run the file.
           if [[ "$SIGNED" != 'true' ]]; then

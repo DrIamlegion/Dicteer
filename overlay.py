@@ -30,7 +30,7 @@ ACCENTS = {
     "idle": "#3b82f6",
 }
 
-TITLE = "Freebuff Dictate Overlay"
+TITLE = "Dicteer Overlay"
 WIDTH = 500
 TEXT_WIDTH = WIDTH - 60
 BOTTOM_MARGIN = 90

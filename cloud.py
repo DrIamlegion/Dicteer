@@ -91,7 +91,7 @@ def protect(plain: str) -> str:
     crypt32 = _crypt32()
     if not crypt32.CryptProtectData(
         ctypes.byref(in_blob),
-        "Freebuff Dictate",
+        "Dicteer",
         None,
         None,
         None,
@@ -235,7 +235,7 @@ def wav_bytes(audio, sample_rate: int = 16000) -> bytes:
 
 
 def _multipart(fields: dict[str, str], filename: str, payload: bytes) -> tuple[bytes, str]:
-    boundary = f"----FreebuffDictate{uuid.uuid4().hex}"
+    boundary = f"----Dicteer{uuid.uuid4().hex}"
     chunks: list[bytes] = []
     for name, value in fields.items():
         if value is None or value == "":
@@ -306,7 +306,7 @@ class CloudTranscriber:
                 "Authorization": f"Bearer {key}",
                 "Content-Type": f"multipart/form-data; boundary={boundary}",
                 "Accept": "application/json",
-                "User-Agent": "Freebuff-Dictate/1.7",
+                "User-Agent": "Dicteer/2.0",
             },
         )
         try:

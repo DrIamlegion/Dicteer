@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Crash logging for Freebuff Dictate.
+"""Crash logging for Dicteer.
 
 Unhandled exceptions in the main thread, worker threads and the garbage
 collector are appended to ``crash.log`` next to the config that started the
@@ -335,7 +335,7 @@ def _enable_fault_handler() -> None:
         _fault_file = _path.open("a", encoding="utf-8", buffering=1)
         if _fault_file.tell() == 0:
             label = f" {_version}" if _version else ""
-            _fault_file.write(f"Freebuff Dictate crash log{label}\n")
+            _fault_file.write(f"Dicteer crash log{label}\n")
             _fault_file.flush()
         faulthandler.enable(file=_fault_file, all_threads=True)
     except Exception:
@@ -387,7 +387,7 @@ def _header(
     lines = [
         "",
         "=" * 72,
-        f"{stamp}  Freebuff Dictate {version}".rstrip(),
+        f"{stamp}  Dicteer {version}".rstrip(),
         f"source: {source}",
         f"thread: {thread_name or threading.current_thread().name}",
         f"python: {platform.python_version()} ({platform.system()} {platform.release()})",

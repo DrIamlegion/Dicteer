@@ -1,4 +1,4 @@
-# Freebuff Dictate - one-time setup / repair.
+# Dicteer - one-time setup / repair.
 # Re-runnable: reinstalls the pinned dependencies and pre-downloads the model.
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
@@ -19,7 +19,7 @@ Write-Host 'Pre-downloading the speech model (first time only, ~250 MB)...' -For
 if ($LASTEXITCODE -ne 0) { throw "model download failed (exit $LASTEXITCODE)" }
 
 Write-Host ''
-Write-Host 'Done. Start with:  Freebuff Dictate.vbs  (opens the window, tray keeps running)' -ForegroundColor Green
+Write-Host 'Done. Start with:  Dicteer.vbs  (opens the window, tray keeps running)' -ForegroundColor Green
 Write-Host 'For a console with live status use:  dictate.bat' -ForegroundColor Green
 Write-Host 'The window uses the Microsoft Edge WebView2 runtime, which ships with Windows 10/11.' -ForegroundColor Green
 Write-Host 'To start with Windows, tick "Start met Windows" in Settings.' -ForegroundColor Green

@@ -1,12 +1,12 @@
-# Freebuff Dictate - build the packaged app and the Windows installer.
+# Dicteer - build the packaged app and the Windows installer.
 #
 #   .\build-installer.ps1              tests, then exe + installer
 #   .\build-installer.ps1 -SkipTests   exe + installer only
 #   .\build-installer.ps1 -ExeOnly     exe only, no installer
 #
 # Output:
-#   dist\Freebuff Dictate\                      the app folder (run the .exe in it)
-#   dist\Freebuff-Dictate-Setup-<version>.exe   the installer
+#   dist\Dicteer\                      the app folder (run the .exe in it)
+#   dist\Dicteer-Setup-<version>.exe   the installer
 #
 # Everything is per-user: no administrator rights are needed to build or to
 # install. The first build downloads PyInstaller and NSIS into the project.
@@ -45,7 +45,7 @@ if (-not (Test-Path $python)) {
 $version = (& $python (Join-Path $PSScriptRoot 'installer\version.py')).Trim()
 if (-not $version) { throw 'Could not read APP_VERSION from desktop.py' }
 $fileVersion = "$version.0.0"
-Write-Host "Freebuff Dictate $version" -ForegroundColor Cyan
+Write-Host "Dicteer $version" -ForegroundColor Cyan
 
 # The exe's Windows version resource comes from version_info.txt, which repeats
 # the number by hand; stop here rather than ship an exe labelled with an old one.
@@ -65,10 +65,10 @@ Write-Host 'Installing build dependencies...' -ForegroundColor Cyan
 if ($LASTEXITCODE -ne 0) { throw "pip install failed (exit $LASTEXITCODE)" }
 
 Write-Host 'Building the app folder (this takes a few minutes)...' -ForegroundColor Cyan
-& $python -m PyInstaller --noconfirm --clean FreebuffDictate.spec
+& $python -m PyInstaller --noconfirm --clean Dicteer.spec
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed (exit $LASTEXITCODE)" }
 
-$appExe = Join-Path $PSScriptRoot 'dist\Freebuff Dictate\Freebuff Dictate.exe'
+$appExe = Join-Path $PSScriptRoot 'dist\Dicteer\Dicteer.exe'
 if (-not (Test-Path $appExe)) { throw "PyInstaller did not produce $appExe" }
 Write-Host "  $appExe" -ForegroundColor Green
 
@@ -123,10 +123,10 @@ if (-not $nsis) {
 }
 
 Write-Host 'Building the installer...' -ForegroundColor Cyan
-& $nsis "/DAPP_VERSION=$version" "/DAPP_FILEVERSION=$fileVersion" "/DPROJECT_ROOT=$PSScriptRoot" (Join-Path $PSScriptRoot 'installer\FreebuffDictate.nsi')
+& $nsis "/DAPP_VERSION=$version" "/DAPP_FILEVERSION=$fileVersion" "/DPROJECT_ROOT=$PSScriptRoot" (Join-Path $PSScriptRoot 'installer\Dicteer.nsi')
 if ($LASTEXITCODE -ne 0) { throw "makensis failed (exit $LASTEXITCODE)" }
 
-$setup = Join-Path $PSScriptRoot "dist\Freebuff-Dictate-Setup-$version.exe"
+$setup = Join-Path $PSScriptRoot "dist\Dicteer-Setup-$version.exe"
 if (-not (Test-Path $setup)) { throw "The installer was not produced at $setup" }
 
 if ($signing) {
@@ -137,4 +137,4 @@ if ($signing) {
 
 Write-Host ''
 Write-Host "Installer: $setup" -ForegroundColor Green
-Write-Host 'It installs per user in %LOCALAPPDATA%\Programs\Freebuff Dictate.' -ForegroundColor Green
+Write-Host 'It installs per user in %LOCALAPPDATA%\Programs\Dicteer.' -ForegroundColor Green

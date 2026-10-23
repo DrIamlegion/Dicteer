@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Self-test for Freebuff Dictate.
+"""Self-test for Dicteer.
 
 Checks the parts that can be verified without speaking or taking over the
 keyboard: config loading, resampling, the record -> transcribe -> deliver state
@@ -106,7 +106,7 @@ def test_clipboard() -> None:
     except Exception as exc:
         check("clipboard readable", False, f"{type(exc).__name__}: {exc}")
         return
-    marker = f"freebuff-dictate-selftest-{time.time():.0f}"
+    marker = f"dicteer-selftest-{time.time():.0f}"
     try:
         pyperclip.copy(marker)
         check("clipboard round-trip", pyperclip.paste() == marker)
@@ -1255,8 +1255,8 @@ def test_updates() -> None:
 
     release = {
         "tag_name": "v1.7.0",
-        "name": "Freebuff Dictate v1.7.0",
-        "html_url": "https://github.com/DrIamlegion/FreebuffDictate/releases/tag/v1.7.0",
+        "name": "Dicteer v1.7.0",
+        "html_url": "https://github.com/DrIamlegion/Dicteer/releases/tag/v1.7.0",
     }
     result = updates.check("1.6", opener=opener(release))
     check("a newer release is offered", result.get("available") is True, repr(result))
@@ -1283,7 +1283,7 @@ def test_updates() -> None:
           updates.check("1.6", opener=opener(foreign))["url"].startswith(
               f"https://github.com/{updates.REPO}/releases/"))
     check("our release pages are accepted",
-          updates.is_release_url("https://github.com/DrIamlegion/FreebuffDictate/releases/tag/v1.6"))
+          updates.is_release_url("https://github.com/DrIamlegion/Dicteer/releases/tag/v1.6"))
     check("other pages are refused", not updates.is_release_url("https://example.com/releases"))
 
     offline = updates.check("1.6", opener=opener({}, error=OSError("no network")))
@@ -1291,6 +1291,48 @@ def test_updates() -> None:
           offline.get("ok") is False and bool(offline.get("error")), repr(offline))
     check("a release without a tag is refused",
           updates.check("1.6", opener=opener({"name": "no tag"})).get("ok") is False)
+
+
+def test_legacy_data_migration() -> None:
+    """A 1.x data folder moves into the new name once, without overwriting."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp) / "AppData" / "Roaming"
+        old_dir = base / app.LEGACY_PRODUCT_NAME
+        new_dir = base / "Dicteer"
+        (old_dir / "models").mkdir(parents=True)
+        (old_dir / "config.json").write_text('{"language": "nl"}', encoding="utf-8")
+        (old_dir / "history.json").write_text('{"items": []}', encoding="utf-8")
+        (old_dir / "models" / "model.bin").write_bytes(b"weights")
+
+        saved = (app.DATA_DIR, app.FROZEN, os.environ.get("APPDATA"))
+        app.DATA_DIR = new_dir
+        app.FROZEN = True
+        os.environ["APPDATA"] = str(base)
+        try:
+            moved = app.migrate_legacy_data()
+            check("the old data folder is reported as moved", moved == old_dir, str(moved))
+            check("settings land in the new folder",
+                  (new_dir / "config.json").read_text(encoding="utf-8") == '{"language": "nl"}')
+            check("history lands in the new folder", (new_dir / "history.json").exists())
+            check("models move with the rest",
+                  (new_dir / "models" / "model.bin").read_bytes() == b"weights")
+            check("the old folder is gone once emptied", not old_dir.exists())
+            check("a second start has nothing left to do", app.migrate_legacy_data() is None)
+
+            # A folder that already has settings wins over the old one.
+            old_dir.mkdir(parents=True)
+            (old_dir / "config.json").write_text('{"language": "en"}', encoding="utf-8")
+            check("an existing install is not overwritten", app.migrate_legacy_data() is None)
+            check("the current config is untouched",
+                  (new_dir / "config.json").read_text(encoding="utf-8") == '{"language": "nl"}')
+        finally:
+            app.DATA_DIR, app.FROZEN = saved[0], saved[1]
+            if saved[2] is None:
+                os.environ.pop("APPDATA", None)
+            else:
+                os.environ["APPDATA"] = saved[2]
 
 
 def test_history_stats() -> None:
@@ -1646,7 +1688,7 @@ def test_autostart() -> None:
     real_executable = sys.executable
     try:
         sys.frozen = True
-        sys.executable = r"C:\Program Files\Freebuff Dictate\Freebuff Dictate.exe"
+        sys.executable = r"C:\Program Files\Dicteer\Dicteer.exe"
         check(
             "an installed build starts its own exe at login",
             autostart.target() == Path(sys.executable),
@@ -1732,6 +1774,7 @@ def main() -> int:
     test_cloud_failure_message()
     test_cloud_fallback()
     test_updates()
+    test_legacy_data_migration()
     test_history_stats()
     test_corrupt_learning()
     test_corrupt_history()
