@@ -1,5 +1,7 @@
 # Freebuff Dictate
 
+![The Dictate view: ready to dictate, live text, today's stats](assets/screenshots/dictate.png)
+
 Offline-first voice-to-text for any Windows app — built so you can **talk to
 Freebuff instead of typing**. Hold a hotkey, speak, let go, and the sentence is
 pasted into whatever window has focus (the Freebuff prompt box included). Words
