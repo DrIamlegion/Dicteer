@@ -38,6 +38,8 @@ hiddenimports = [
     "tokenizers",
     "huggingface_hub",
     "onnxruntime",
+    # Imported inside the update check, so the analysis cannot see it.
+    "updates",
 ]
 
 # These wheels load DLLs, tokenizer JSON and JavaScript shims from their own

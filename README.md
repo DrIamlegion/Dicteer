@@ -9,7 +9,9 @@ appear live while you talk, both in the app window and in a small overlay when
 the window is out of the way.
 
 By default everything runs on your machine: no account, no API key, no audio
-leaving the PC, and the only network access is the one-time model download.
+leaving the PC, and the only network access is the one-time model download. The
+**Over** tab can ask GitHub whether a newer release exists, but only when you
+press that button; nothing is sent at startup.
 If you want more accuracy than the local `small` model, **Instellingen → Online
 model** can use Groq's free Whisper tier; only the finished utterance is then
 uploaded, and the preview plus fallback stay local. See [Online model](#online-model-gratis).
@@ -138,7 +140,11 @@ Changes are applied live — the hotkey is re-armed, the model reloads in the
 background when needed.
 
 **Over** — version, the active transcription engine (local Whisper or Groq),
-active models, where things live on disk, and the quit button.
+active models, where things live on disk, the quit button, and **Controleer op
+updates**: one request to the GitHub releases API, only when you click it. It
+reports the newest version and, when there is one, offers a **Downloaden**
+button that opens that release page in your browser. Nothing is downloaded or
+installed automatically, and a failed check just says so.
 
 The window remembers its size and position in `ui-state.json` next to
 `config.json`; the first launch opens centred. Closing it hides it and shows a

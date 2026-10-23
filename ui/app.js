@@ -1159,6 +1159,7 @@
   function renderAbout() {
     const s = state.settings || {};
     $("about-version").textContent = state.version;
+    $("update-current").textContent = state.version;
     const backend = (state.cloud && state.cloud.backend) || s.online_backend || "local";
     const hasKey = Boolean(state.cloud && state.cloud.has_key);
     const onlineEngine = backend === "groq" && hasKey;
@@ -1558,6 +1559,54 @@
   $("open-log-2").addEventListener("click", openLog);
   $("open-crash-log").addEventListener("click", openCrashLog);
   $("open-crash-log-2").addEventListener("click", openCrashLog);
+
+  /* ----------------------------------------------------------- updates */
+  // Nothing happens until the button is pressed: the app makes no update
+  // request at startup, so the offline promise in the README holds.
+  async function checkUpdates() {
+    const button = $("check-updates");
+    const status = $("update-status");
+    const download = $("download-update");
+    button.disabled = true;
+    download.hidden = true;
+    delete download.dataset.url;
+    status.textContent = "Bezig met controleren…";
+    try {
+      const result = await api.check_updates();
+      if (!result || result.ok === false) {
+        status.textContent = (result && result.error) || "Kon de releasedienst niet bereiken.";
+        return;
+      }
+      if (result.available) {
+        status.textContent = `Versie ${result.latest} is beschikbaar; je hebt ${result.current}.`;
+        if (result.url) {
+          download.dataset.url = result.url;
+          download.hidden = false;
+        }
+        toast(`Versie ${result.latest} is beschikbaar`, "ok");
+      } else {
+        status.textContent = `Je hebt de nieuwste versie (${result.current}).`;
+      }
+    } catch (err) {
+      logJs("update check failed: " + (err && err.message ? err.message : err));
+      status.textContent = "Kon de releasedienst niet bereiken.";
+    } finally {
+      button.disabled = false;
+    }
+  }
+  $("check-updates").addEventListener("click", checkUpdates);
+  $("download-update").addEventListener("click", async () => {
+    const url = $("download-update").dataset.url;
+    if (!url) return;
+    try {
+      const result = await api.open_release(url);
+      if (result && result.ok === false) {
+        toast(result.error || "Downloadlink openen mislukt", "error");
+      }
+    } catch (err) {
+      toast("Downloadlink openen mislukt", "error");
+    }
+  });
   $("crash-notice-open").addEventListener("click", async () => {
     if (await openCrashLog()) {
       state.crashDismissed = true;
@@ -1779,7 +1828,21 @@
       async test_microphone(seconds, device) {
         await new Promise((resolve) => setTimeout(resolve, 1200));
         return { ok: true, peak: 0.14, dbfs: -17.1, verdict: "goed", device: device ? "Gekozen microfoon" : "Realtek Audio", seconds: 2 };
-      },      async open_log() {
+      },
+      async check_updates() {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        return {
+          ok: true,
+          current: "1.6",
+          latest: "1.7.0",
+          available: true,
+          name: "Freebuff Dictate v1.7.0",
+          url: "https://github.com/DrIamlegion/FreebuffDictate/releases/tag/v1.7.0",
+          page: "https://github.com/DrIamlegion/FreebuffDictate/releases/latest",
+        };
+      },
+      async open_release() { return { ok: true }; },
+      async open_log() {
         return { ok: true };
       },
       async open_crash_log() {

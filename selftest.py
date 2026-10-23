@@ -1219,6 +1219,80 @@ def test_cloud_fallback() -> None:
           dicta.transcribe_audio(audio) == "lokale tekst")
 
 
+def test_updates() -> None:
+    """The release check compares versions and never interrupts dictation."""
+    import updates
+
+    check("version keys pad the missing parts", updates.version_key("v1.7") == (1, 7, 0))
+    check("version keys ignore a pre-release suffix",
+          updates.version_key("1.7.0-beta.1") == (1, 7, 0))
+    try:
+        updates.version_key("latest")
+    except ValueError:
+        check("a tag that is not a version is rejected", True)
+    else:
+        check("a tag that is not a version is rejected", False, "no ValueError")
+
+    class Response(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc):
+            self.close()
+            return False
+
+    seen: dict = {}
+
+    def opener(payload, error=None):
+        def call(request, timeout=None):
+            if error is not None:
+                raise error
+            seen["url"] = request.full_url
+            seen["headers"] = {key.lower(): value for key, value in request.header_items()}
+            return Response(json.dumps(payload).encode("utf-8"))
+
+        return call
+
+    release = {
+        "tag_name": "v1.7.0",
+        "name": "Freebuff Dictate v1.7.0",
+        "html_url": "https://github.com/DrIamlegion/FreebuffDictate/releases/tag/v1.7.0",
+    }
+    result = updates.check("1.6", opener=opener(release))
+    check("a newer release is offered", result.get("available") is True, repr(result))
+    check("the new version is named without the v", result.get("latest") == "1.7.0", str(result.get("latest")))
+    check("the release page becomes the download link",
+          str(result.get("url")).endswith("/tag/v1.7.0"), str(result.get("url")))
+    check("the request identifies itself to GitHub",
+          seen["headers"].get("user-agent") == updates.USER_AGENT, str(seen.get("headers")))
+    check("the request asks for the GitHub JSON API",
+          seen["headers"].get("accept") == "application/vnd.github+json")
+    check("the check reads the latest release endpoint", seen["url"] == updates.API_URL, seen["url"])
+
+    same = dict(release, tag_name="v1.6")
+    check("the installed version is not offered again",
+          updates.check("1.6", opener=opener(same)).get("available") is False)
+    older = dict(release, tag_name="v1.5.2")
+    check("an older tag is not offered", updates.check("1.6", opener=opener(older)).get("available") is False)
+    same_version = dict(release, tag_name="v1.6.0")
+    check("1.6 and v1.6.0 are the same release",
+          updates.check("1.6", opener=opener(same_version)).get("available") is False)
+
+    foreign = dict(release, html_url="https://example.com/freebuff-setup.exe")
+    check("a foreign download link is replaced by our release page",
+          updates.check("1.6", opener=opener(foreign))["url"].startswith(
+              f"https://github.com/{updates.REPO}/releases/"))
+    check("our release pages are accepted",
+          updates.is_release_url("https://github.com/DrIamlegion/FreebuffDictate/releases/tag/v1.6"))
+    check("other pages are refused", not updates.is_release_url("https://example.com/releases"))
+
+    offline = updates.check("1.6", opener=opener({}, error=OSError("no network")))
+    check("offline returns a message instead of raising",
+          offline.get("ok") is False and bool(offline.get("error")), repr(offline))
+    check("a release without a tag is refused",
+          updates.check("1.6", opener=opener({"name": "no tag"})).get("ok") is False)
+
+
 def test_history_stats() -> None:
     now = time.time()
     items = [
@@ -1657,6 +1731,7 @@ def main() -> int:
     test_cloud_http()
     test_cloud_failure_message()
     test_cloud_fallback()
+    test_updates()
     test_history_stats()
     test_corrupt_learning()
     test_corrupt_history()

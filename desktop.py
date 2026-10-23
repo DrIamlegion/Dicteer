@@ -329,6 +329,21 @@ class Api:
         self.shell.open_path(self.shell.app_dir)
         return {"ok": True}
 
+    def check_updates(self) -> dict:
+        """Ask GitHub for the newest release; only the Over view calls this."""
+        import updates
+
+        return updates.check(APP_VERSION)
+
+    def open_release(self, url: str) -> dict:
+        """Open a release page in the browser, and only ours."""
+        import updates
+
+        if not updates.is_release_url(url):
+            return {"ok": False, "error": "Onbekende downloadlink."}
+        self.shell.open_path(url)
+        return {"ok": True}
+
     def hide_window(self) -> dict:
         self.shell.ui.hide()
         return {"ok": True}
