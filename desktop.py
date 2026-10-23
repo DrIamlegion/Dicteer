@@ -28,7 +28,7 @@ log = logging.getLogger("dictate")
 UI_DIR = Path(__file__).resolve().parent / "ui"
 ICON = Path(__file__).resolve().parent / "assets" / "icon.ico"
 TITLE = "Freebuff Dictate"
-APP_VERSION = "1.6"
+APP_VERSION = "1.7"
 
 DEFAULT_WIDTH = 1080
 DEFAULT_HEIGHT = 760

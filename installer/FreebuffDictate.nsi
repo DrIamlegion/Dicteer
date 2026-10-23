@@ -6,7 +6,7 @@
 ; asks for that during uninstall.
 ;
 ; Build with build-installer.ps1, or:
-;   makensis /DAPP_VERSION=1.6 /DAPP_FILEVERSION=1.6.0.0 installer\FreebuffDictate.nsi
+;   makensis /DAPP_VERSION=1.7 /DAPP_FILEVERSION=1.7.0.0 installer\FreebuffDictate.nsi
 
 Unicode true
 SetCompressor /SOLID lzma
@@ -20,10 +20,10 @@ BrandingText "Freebuff Dictate"
 !include "x64.nsh"
 
 !ifndef APP_VERSION
-  !define APP_VERSION "1.6"
+  !define APP_VERSION "1.7"
 !endif
 !ifndef APP_FILEVERSION
-  !define APP_FILEVERSION "1.6.0.0"
+  !define APP_FILEVERSION "1.7.0.0"
 !endif
 
 !define APP_NAME "Freebuff Dictate"

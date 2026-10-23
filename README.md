@@ -515,7 +515,7 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Freebuff-Dictate-Setup-1.6.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Freebuff-Dictate-Setup-1.7.exe`:
 the status is `Valid` once Windows trusts the chain. Freshly issued OV
 certificates may still trip SmartScreen until the file has download
 reputation; EV certificates and Trusted Signing start with reputation.
@@ -543,7 +543,9 @@ token is needed. The build refuses a tag that does not name the same version as
 `APP_VERSION` (`v1.6`, `v1.6.0`, `v1.6.0.0` and `v1.6.0-beta.1` all match 1.6),
 so a `v1.7` tag on a 1.6 build fails instead of shipping an exe that still says
 1.6. Bump `APP_VERSION` in `desktop.py` and the version in
-`installer\version_info.txt` before tagging.
+`installer\version_info.txt` before tagging; the NSIS fallback version in
+`installer\FreebuffDictate.nsi` and the User-Agent in `cloud.py` carry the same
+number and should be bumped with them.
 
 ---
 

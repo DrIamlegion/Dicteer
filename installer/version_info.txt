@@ -1,9 +1,9 @@
 # Windows version resource for "Freebuff Dictate.exe".
-# Keep the numbers in step with desktop.APP_VERSION (1.6 -> 1.6.0.0).
+# Keep the numbers in step with desktop.APP_VERSION (1.7 -> 1.7.0.0).
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 6, 0, 0),
-    prodvers=(1, 6, 0, 0),
+    filevers=(1, 7, 0, 0),
+    prodvers=(1, 7, 0, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -19,12 +19,12 @@ VSVersionInfo(
           [
             StringStruct("CompanyName", "Freebuff Dictate"),
             StringStruct("FileDescription", "Freebuff Dictate - offline voice to text"),
-            StringStruct("FileVersion", "1.6.0.0"),
+            StringStruct("FileVersion", "1.7.0.0"),
             StringStruct("InternalName", "FreebuffDictate"),
             StringStruct("LegalCopyright", "Freebuff Dictate"),
             StringStruct("OriginalFilename", "Freebuff Dictate.exe"),
             StringStruct("ProductName", "Freebuff Dictate"),
-            StringStruct("ProductVersion", "1.6.0"),
+            StringStruct("ProductVersion", "1.7.0"),
           ],
         )
       ]
