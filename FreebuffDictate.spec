@@ -60,6 +60,11 @@ for package in (
     binaries += package_binaries
     hiddenimports += package_hidden
 
+# A .pyc records the absolute path it was compiled from, so caches collected
+# from site-packages would ship the builder's own folder name inside the app.
+# They are regenerated at runtime and never needed as data files.
+datas = [entry for entry in datas if "__pycache__" not in entry[0]]
+
 a = Analysis(
     [str(ROOT / "tray.pyw")],
     pathex=[str(ROOT)],

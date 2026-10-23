@@ -72,6 +72,12 @@ $appExe = Join-Path $PSScriptRoot 'dist\Freebuff Dictate\Freebuff Dictate.exe'
 if (-not (Test-Path $appExe)) { throw "PyInstaller did not produce $appExe" }
 Write-Host "  $appExe" -ForegroundColor Green
 
+# A package hook can copy compiled caches into the app folder, and a .pyc
+# records the absolute path it was built from - the builder's own user folder.
+# They are never needed at runtime, so nothing built here ships one.
+Get-ChildItem -LiteralPath (Split-Path $appExe) -Directory -Filter '__pycache__' -Recurse |
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+
 $signing = [bool]($PfxPath -or $CertThumbprint)
 if ($signing) {
     Write-Host 'Signing the app...' -ForegroundColor Cyan
