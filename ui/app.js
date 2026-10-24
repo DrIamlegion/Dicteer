@@ -20,7 +20,7 @@
     listening: true,
     current: "idle",
     hotkeyLabel: "F9",
-    version: "2.0.7",
+    version: "2.0.8",
     models: [],
     cloud: { backend: "local", has_key: false, model: "whisper-large-v3-turbo", free_limits: "", keys_url: "" },
     configPath: "",
@@ -243,7 +243,7 @@
     state.partial = "";
     state.current = "idle";
     state.recordingStarted = 0;
-    setTranscript(item.text || "");
+    setTranscript(item.text || "", true);
     const seconds = Number(item.duration || 0);
     const meta = [new Date().toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })];
     if (seconds) meta.push(`${seconds.toFixed(1)} s spraak`);
@@ -348,7 +348,15 @@
       label = "Bezig…";
     }
 
-    $("status-kicker").textContent = kicker;
+    // Only replay the entrance when the line actually changes, so the hero
+    // does not twitch while a dictation is running.
+    const kickerNode = $("status-kicker");
+    if (kickerNode.textContent !== kicker) {
+      kickerNode.textContent = kicker;
+      kickerNode.classList.remove("is-flash");
+      void kickerNode.offsetWidth;
+      kickerNode.classList.add("is-flash");
+    }
     $("status-hint").innerHTML = hint;
     $("record-label").textContent = label;
     $("record-button").disabled = state.current === "transcribing";
@@ -438,18 +446,20 @@
   let clockTimer = null;
   function startClock() {
     if (clockTimer) return;
+    // Only the timer chip counts here: the foot line belongs to the word
+    // counter, and two writers on one element made the words invisible.
     clockTimer = setInterval(() => {
       if (state.current !== "recording" || !state.recordingStarted) return;
       const seconds = (Date.now() - state.recordingStarted) / 1000;
       $("timer").textContent = `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
-      $("live-count").textContent = `${seconds.toFixed(1)} s opgenomen`;
     }, 200);
   }
 
   /* --------------------------------------------------------- transcript */
-  function setTranscript(text) {
+  function setTranscript(text, fresh) {
     const box = $("transcript");
     const value = String(text || "");
+    box.classList.remove("is-fresh");
     if (!value.trim()) {
       box.innerHTML = '<span class="placeholder">Je woorden verschijnen hier terwijl je spreekt.</span>';
       $("live-count").textContent = "0 woorden";
@@ -461,6 +471,10 @@
     const words = value.trim().split(/\s+/).filter(Boolean).length;
     $("live-count").textContent = `${words} ${words === 1 ? "woord" : "woorden"}`;
     $("copy-live").hidden = false;
+    if (fresh) {
+      void box.offsetWidth;
+      box.classList.add("is-fresh");
+    }
   }
 
   function renderTranscript() {
@@ -475,9 +489,9 @@
 
   function renderStats() {
     const stats = state.stats || {};
-    $("stat-count").textContent = String(stats.today_count || 0);
-    $("stat-words").textContent = String(stats.today_words || 0);
-    $("stat-time").textContent = humanSeconds(stats.today_seconds || 0);
+    bumpValue($("stat-count"), stats.today_count || 0);
+    bumpValue($("stat-words"), stats.today_words || 0);
+    bumpValue($("stat-time"), humanSeconds(stats.today_seconds || 0));
   }
 
   /* ------------------------------------------------------------- recent */
@@ -1386,6 +1400,18 @@
   }
 
   /* ---------------------------------------------------------------- misc */
+  // A stat that changed scales up once; an unchanged one is left alone, so a
+  // re-render never makes the row flicker.
+  function bumpValue(node, value) {
+    if (!node) return;
+    const text = String(value);
+    if (node.textContent === text) return;
+    node.textContent = text;
+    node.classList.remove("is-bump");
+    void node.offsetWidth;
+    node.classList.add("is-bump");
+  }
+
   function toast(message, kind) {
     if (!message) return;
     const node = document.createElement("div");
@@ -1393,9 +1419,8 @@
     node.textContent = message;
     $("toasts").appendChild(node);
     setTimeout(() => {
-      node.style.opacity = "0";
-      node.style.transition = "opacity 0.2s";
-      setTimeout(() => node.remove(), 220);
+      node.classList.add("is-out");
+      setTimeout(() => node.remove(), 240);
     }, 2400);
     while ($("toasts").children.length > 4) $("toasts").firstElementChild.remove();
   }
@@ -1727,7 +1752,7 @@
             { id: "Microfoon (USB-headset)", name: "Microfoon (USB-headset)", label: "Microfoon (USB-headset)", index: 3, default: false, api: "Windows WASAPI", rate: 48000 },
           ],
           cloud: cloudPayload(),
-          autostart: false, hotkey_label: "F9", version: "2.0.7 (demo)",
+          autostart: false, hotkey_label: "F9", version: "2.0.8 (demo)",
           crash_log_path: "crash.log (demo)",
           models: MODEL_ORDER.concat(["tiny", "base", "small", "medium"].map((name) => `${name}.en`)),
           model_dir: "C:\\Users\\gebruiker\\AppData\\Roaming\\Dicteer\\models",
@@ -1874,7 +1899,7 @@
         await new Promise((resolve) => setTimeout(resolve, 350));
         return {
           ok: true,
-          current: "2.0.7",
+          current: "2.0.8",
           latest: "2.1.0",
           available: true,
           name: "Dicteer v2.1.0",

@@ -306,7 +306,7 @@ class CloudTranscriber:
                 "Authorization": f"Bearer {key}",
                 "Content-Type": f"multipart/form-data; boundary={boundary}",
                 "Accept": "application/json",
-                "User-Agent": "Dicteer/2.0.7",
+                "User-Agent": "Dicteer/2.0.8",
             },
         )
         try:
