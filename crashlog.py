@@ -20,6 +20,7 @@ import faulthandler
 import json
 import os
 import platform
+import re
 import sys
 import threading
 import time
@@ -31,6 +32,18 @@ APP_DIR = Path(__file__).resolve().parent
 CRASH_LOG = APP_DIR / "crash.log"
 RUN_MARKER_NAME = "crash-run.json"
 MAX_BYTES = 512_000
+
+# ``faulthandler`` dumps a "Windows fatal exception" for COM errors that the
+# WinForms/WebView2 layer raises and then handles.  The app keeps running, so
+# the dump is noise; without this list the next launch would announce a crash
+# that never happened.  Only codes known to be handled belong here - anything
+# else is still treated as a real crash and keeps the notice.
+HANDLED_WINDOWS_CODES = frozenset({"0x8001010d"})
+
+_WINDOWS_FATAL_CODE = re.compile(r"Windows fatal exception: code (0x[0-9a-fA-F]+)")
+# Written by _header() and only by _header(), so its presence in fresh text
+# means a structured report rather than a raw faulthandler dump.
+_REPORT_HEADER = re.compile(r"^source: ", re.MULTILINE)
 
 _lock = threading.RLock()
 _writing = threading.local()
@@ -125,9 +138,10 @@ def previous_run() -> dict:
 
     A marker next to the crash log is written at startup and removed on a clean
     exit.  When it is still there, the previous process did not reach its
-    shutdown path.  ``pending`` is only true when the crash log also grew since
-    that run started, so a stale marker without a report does not produce a
-    misleading notice.
+    shutdown path.  ``pending`` is only true when the crash log grew since that
+    run started *and* the appended text is a real crash: a stale marker, or a
+    dump from a handled WebView2 COM exception, does not produce a misleading
+    notice.
     """
     previous = _read_run_marker()
     notice = {"pending": _has_new_report(previous), "path": str(_path)}
@@ -209,7 +223,34 @@ def _has_new_report(previous) -> bool:
         offset = int(previous.get("log_size", 0))
     except (TypeError, ValueError):
         offset = 0
-    return _log_size() > offset
+    size = _log_size()
+    if size <= offset:
+        return False
+    try:
+        with _path.open("rb") as handle:
+            handle.seek(max(offset, 0))
+            fresh = handle.read().decode("utf-8", "replace")
+    except Exception:
+        # An unreadable tail is no reason to hide a possible crash.
+        return True
+    return _has_real_report(fresh)
+
+
+def _has_real_report(fresh: str) -> bool:
+    """Whether the text appended since the marker describes a real crash.
+
+    A structured report always counts.  A bare faulthandler dump counts unless
+    every exception code in it is one the app survives; an unknown or mixed
+    dump keeps the notice, because a real native crash must still be reported.
+    """
+    if not fresh.strip():
+        return False
+    if _REPORT_HEADER.search(fresh):
+        return True
+    codes = [code.lower() for code in _WINDOWS_FATAL_CODE.findall(fresh)]
+    if not codes:
+        return True
+    return any(code not in HANDLED_WINDOWS_CODES for code in codes)
 
 
 def record(

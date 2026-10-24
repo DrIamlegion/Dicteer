@@ -551,7 +551,7 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.5.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.6.exe`:
 the status is `Valid` once Windows trusts the chain. SmartScreen is a separate
 matter: the prompt fades only as the publisher's reputation grows, and that is
 as true for EV certificates as for OV ones.
@@ -698,7 +698,9 @@ startup crash when launched hidden? Run `dictate.bat` for a console, or read
 `dictate.log` / `crash.log`. When the previous run left a new crash report, the
 window opens with a notice at the top; clicking **Crashlog openen** there goes
 straight to the report. The temporary `crash-run.json` marker next to the log
-is removed on a normal quit.
+is removed on a normal quit. A `Windows fatal exception: code 0x8001010d` dump
+is a COM call WebView2 raised and then handled — it stays in the log for the
+record, but it does not count as a crash, so the next window opens quietly.
 
 ---
 
