@@ -239,6 +239,17 @@ class Shell:
             return {"ok": False, "error": "Onbekend soort leeritem."}
         return {"ok": True, "removed": removed, "learning": self.learning.payload()}
 
+    def add_vocabulary(self, word: str) -> dict:
+        """Add a word the user typed in Settings -> Leren -> Eigen woorden."""
+        if not self.learning.add_word(word):
+            return {
+                "ok": False,
+                "error": "Vul één woord in zonder spaties, maximaal 40 tekens.",
+                "learning": self.learning.payload(),
+            }
+        log.info("vocabulary word added from the window: %s", str(word).strip())
+        return {"ok": True, "learning": self.learning.payload()}
+
     def clear_learning(self) -> dict:
         self.learning.clear()
         log.info("learned corrections cleared")

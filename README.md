@@ -133,7 +133,7 @@ learns (see below). Clear asks for a second click first.
   type `<ctrl>+<alt>+d` by hand. Escape cancels;
 * hold-to-talk, overlay, live preview, beeps, trailing space, clipboard restore;
 * a **Leren** card with the switch for correction learning, the words the app
-  learned, and a forget button per item;
+  learned, a field to add a word yourself, and a forget button per item;
 * an **Online model** card: local or Groq's free tier, with a field for the
   encrypted API key and the free-tier limits;
 * **Start met Windows**, **Crashlog opslaan**, log/crashlog/folder buttons, and
@@ -237,6 +237,13 @@ In **Instellingen → Leren** you can see exactly what was learned, remove a
 single correction or word, or forget everything. Turning off **Leren van
 correcties** stops new learning; existing corrections stay active until you
 remove them. Nothing is learned from ordinary dictation you did not edit.
+
+A word you already know the model gets wrong does not have to wait for a
+correction. Type it into **Eigen woorden** and press Enter: one word, no spaces
+(`features`, `plug-in`, `TypeScript`). It is in the next `initial_prompt`
+immediately, without a restart, and survives an update in `learning.json`.
+Decimal spelling of a word the model hears differently (`features` came out as
+`vuurtjes`) is exactly what this field is for.
 
 ### Versienummers
 

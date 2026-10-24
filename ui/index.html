@@ -381,9 +381,14 @@
             <h3>Woordcorrecties</h3>
             <div class="learn-list" id="learn-corrections"></div>
           </div>
-          <div class="learn-block" id="learn-vocabulary-block" hidden>
+          <div class="learn-block" id="learn-vocabulary-block">
             <h3>Eigen woorden</h3>
             <div class="learn-chips" id="learn-vocabulary"></div>
+            <div class="key-field learn-add">
+              <input type="text" id="learn-word" placeholder="bijv. features" autocomplete="off" spellcheck="false" maxlength="40" aria-label="Eigen woord toevoegen">
+              <button class="ghost-button mini" id="learn-word-add" type="button">Toevoegen</button>
+            </div>
+            <small class="learn-hint">Eén woord, zonder spaties. Het gaat mee in de prompt van het model, zodat het de volgende keer zo geschreven wordt.</small>
           </div>
           <div class="learn-empty" id="learn-empty">Nog niets geleerd. Bewerk een dictaat in Geschiedenis om te beginnen.</div>
           <button class="ghost-button danger mini" id="learn-clear" hidden>Alles vergeten</button>

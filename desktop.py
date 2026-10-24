@@ -308,6 +308,9 @@ class Api:
     def forget_learning(self, kind: str, value: str) -> dict:
         return self.shell.forget_learning(kind, value)
 
+    def add_vocabulary(self, word: str) -> dict:
+        return self.shell.add_vocabulary(word)
+
     def clear_learning(self) -> dict:
         return self.shell.clear_learning()
 

@@ -784,6 +784,15 @@ def test_shell_ui() -> None:
         check("the correction response carries the learning",
               corrected["learning"]["corrections"][0]["heard"] == "inluchtpagina", str(corrected["learning"]["corrections"]))
         check("the engine prompt gets technical vocabulary only", shell.learning.prompt_extra() == "", shell.learning.prompt_extra())
+        added = shell.add_vocabulary("features")
+        check("the window can add a word by hand",
+              added["ok"] and any(row["word"] == "features" for row in added["learning"]["vocabulary"]),
+              str(added.get("learning")))
+        check("a hand-added word reaches the model prompt",
+              "features" in shell.learning.prompt_extra(), shell.learning.prompt_extra())
+        refused = shell.add_vocabulary("twee woorden")
+        check("a hand-added word refuses spaces",
+              refused["ok"] is False and bool(refused.get("error")), str(refused))
         check("the shell puts a spoken version back together before delivery",
               shell.dictator._postprocess("Dicteer versie 2.01") == "Dicteer versie 2.0.1",
               shell.dictator._postprocess("Dicteer versie 2.01"))
@@ -1056,9 +1065,25 @@ def test_learning() -> None:
         ignored = store.learn_from_diff("de pagina", "het pagina")
         check("stopword-only changes are ignored", ignored == {"corrections": 0, "words": 0}, str(ignored))
 
+        check("a hand-typed word lands in the prompt",
+              store.add_word("features") is True and "features" in store.prompt_extra(), store.prompt_extra())
+        check("typing the same word again counts it",
+              store.add_word("features") is True
+              and next(row for row in store.vocabulary() if row["word"] == "features")["count"] == 2,
+              str(store.vocabulary()[:2]))
+        check("a hand-typed word keeps its hyphen and drops punctuation",
+              store.add_word("plug-in,") is True
+              and any(row["word"] == "plug-in" for row in store.vocabulary()),
+              str([row["word"] for row in store.vocabulary()]))
+        check("a word with a space is refused", store.add_word("twee woorden") is False)
+        check("an empty word is refused", store.add_word("   ") is False)
+        check("a refused word is never stored",
+              all(row["word"] not in ("twee woorden", "") for row in store.vocabulary()))
+
         reloaded = learning_mod.LearningStore(path)
         check("learning survives a restart",
               reloaded.apply_text("inluchtpagina") == "inlogpagina" and "WebSocket" in reloaded.prompt_extra())
+        check("hand-typed words survive a restart", "features" in reloaded.prompt_extra(), reloaded.prompt_extra())
         reloaded.forget_correction("inluchtpagina")
         check("forgetting a correction stops it applying", reloaded.apply_text("inluchtpagina") == "inluchtpagina")
         reloaded.forget_word("WebSocket")

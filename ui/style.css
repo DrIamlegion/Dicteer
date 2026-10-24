@@ -729,6 +729,8 @@ body[data-state="recording"] .transcript::after {
   line-height: 1;
 }
 .learn-chip button:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.learn-add { margin-top: 10px; max-width: 420px; }
+.learn-hint { display: block; margin-top: 7px; color: var(--faint); font-size: 11px; line-height: 1.45; }
 .learn-empty { color: var(--faint); font-size: 12px; padding: 12px 0 2px; }
 #learn-clear { margin-top: 12px; }
 

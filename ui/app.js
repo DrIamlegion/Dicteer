@@ -784,7 +784,8 @@
     const correctionsBlock = $("learn-corrections-block");
     const vocabularyBlock = $("learn-vocabulary-block");
     correctionsBlock.hidden = corrections.length === 0;
-    vocabularyBlock.hidden = vocabulary.length === 0;
+    // The block holds the add field, so it stays reachable with an empty list.
+    vocabularyBlock.hidden = false;
     $("learn-clear").hidden = total === 0;
 
     const list = $("learn-corrections");
@@ -830,6 +831,29 @@
       chip.append(label, forget);
       chips.appendChild(chip);
     });
+  }
+
+  async function addVocabulary() {
+    const input = $("learn-word");
+    const word = input.value.trim();
+    if (!word) {
+      input.focus();
+      return;
+    }
+    try {
+      const res = await api.add_vocabulary(word);
+      if (!res || res.ok === false) {
+        toast((res && res.error) || "Toevoegen mislukt", "error");
+        return;
+      }
+      state.learning = res.learning || state.learning;
+      input.value = "";
+      renderLearning();
+      input.focus();
+      toast(`"${word}" toegevoegd`, "ok");
+    } catch (err) {
+      toast("Toevoegen mislukt", "error");
+    }
   }
 
   async function forgetLearned(kind, value) {
@@ -1490,6 +1514,13 @@
 
   $("save-settings").addEventListener("click", saveSettings);
   $("learn-clear").addEventListener("click", clearLearning);
+  $("learn-word-add").addEventListener("click", addVocabulary);
+  $("learn-word").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addVocabulary();
+    }
+  });
   $("reset-settings").addEventListener("click", () => {
     renderSettings();
     toast("Wijzigingen hersteld", "ok");
@@ -1807,6 +1838,16 @@
           });
         }
         return { ok: true, item, history, stats: computeStats(history), learning: learningPayload(), learned };
+      },
+      async add_vocabulary(word) {
+        const clean = String(word || "").trim().replace(/^[.,;:!?]+|[.,;:!?]+$/g, "");
+        if (!clean || /\s/.test(clean) || clean.length > 40) {
+          return { ok: false, error: "Vul één woord in zonder spaties, maximaal 40 tekens.", learning: learningPayload() };
+        }
+        const row = learning.vocabulary.find((entry) => entry.word === clean);
+        if (row) row.count += 1;
+        else learning.vocabulary.unshift({ word: clean, count: 1 });
+        return { ok: true, learning: learningPayload() };
       },
       async forget_learning(kind, value) {
         if (kind === "correction") {

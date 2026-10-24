@@ -566,13 +566,52 @@ def main() -> int:
                       shell.dictator._postprocess("de bridge-test"))
                 check("the learned name reaches the prompt", "WebSocket" in shell.learning.prompt_extra(), shell.learning.prompt_extra())
 
+                # --- typing a word into Eigen woorden ----------------------
+                evaluate(
+                    window,
+                    "(() => { const i = document.getElementById('learn-word'); i.value = 'features'; "
+                    "document.getElementById('learn-word-add').click(); })()",
+                )
+                check(
+                    "a word typed in Eigen woorden becomes a chip",
+                    wait_js(window, "document.getElementById('learn-vocabulary').textContent.includes('features')", True, 8),
+                    str(evaluate(window, "document.getElementById('learn-vocabulary').textContent")),
+                )
+                check(
+                    "the typed word reaches the model prompt",
+                    "features" in shell.learning.prompt_extra(),
+                    shell.learning.prompt_extra(),
+                )
+                check(
+                    "the field is cleared after adding",
+                    evaluate(window, "document.getElementById('learn-word').value") == "",
+                    str(evaluate(window, "document.getElementById('learn-word').value")),
+                )
+                evaluate(
+                    window,
+                    "(() => { const i = document.getElementById('learn-word'); i.value = 'twee woorden'; "
+                    "document.getElementById('learn-word-add').click(); })()",
+                )
+                check(
+                    "a word with a space is refused in the window",
+                    wait_js(window, "document.getElementById('learn-vocabulary').textContent.includes('twee')", False, 4)
+                    and all(row["word"] != "twee woorden" for row in shell.learning.vocabulary()),
+                    str([row["word"] for row in shell.learning.vocabulary()]),
+                )
+                evaluate(window, "document.getElementById('learn-word').value = ''")
+
                 evaluate(window, "document.querySelector('[data-view=\"settings\"].nav-item').click()")
                 shown = wait_text(window, "#learn-corrections", "WebSocket", 5) and wait_text(window, "#learn-vocabulary", "WebSocket", 5)
                 check("the learning card shows the correction and the word", shown)
 
                 evaluate(window, "document.querySelector('#learn-corrections .learn-forget').click()")
                 wait_js(window, "document.querySelectorAll('#learn-corrections .learn-row').length === 0", True, 6)
-                evaluate(window, "document.querySelector('#learn-vocabulary .learn-chip button').click()")
+                # Every chip must be forgettable, however many the card holds.
+                for _ in range(8):
+                    if evaluate(window, "document.querySelectorAll('#learn-vocabulary .learn-chip').length") == 0:
+                        break
+                    evaluate(window, "document.querySelector('#learn-vocabulary .learn-chip button').click()")
+                    time.sleep(0.2)
                 wait_js(window, "document.querySelectorAll('#learn-vocabulary .learn-chip').length === 0", True, 6)
                 check("forgetting from the card clears the store", shell.learning.payload()["total"] == 0,
                       str(shell.learning.payload()))

@@ -385,6 +385,29 @@ class LearningStore:
             keep = sorted(self._vocabulary.items(), key=lambda item: (item[1]["count"], item[1]["ts"]), reverse=True)
             self._vocabulary = dict(keep[:MAX_VOCABULARY])
 
+    def add_word(self, word: str) -> bool:
+        """Remember one word the user typed themselves.
+
+        Edits in the history are the usual way in, but a word the model keeps
+        mishearing is easier to add up front: typing ``features`` here puts it
+        in the next ``initial_prompt`` without waiting for a correction.
+        """
+        clean = str(word or "").strip().strip(".,;:!?")
+        if not clean or len(clean) > 40 or any(char.isspace() for char in clean):
+            return False
+        now = time.time()
+        with self._lock:
+            entry = self._vocabulary.get(clean)
+            if entry:
+                entry["count"] += 1
+                entry["ts"] = now
+            else:
+                self._vocabulary[clean] = {"count": 1, "ts": now}
+            self._trim_locked()
+            self._write_locked()
+        self._report_write_failure()
+        return True
+
     def forget_correction(self, heard: str) -> bool:
         with self._lock:
             removed = self._corrections.pop(_key(heard), None)
