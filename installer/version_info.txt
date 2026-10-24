@@ -1,9 +1,9 @@
 # Windows version resource for "Dicteer.exe".
-# Keep the numbers in step with desktop.APP_VERSION (2.0.4 -> 2.0.4.0).
+# Keep the numbers in step with desktop.APP_VERSION (2.0.5 -> 2.0.5.0).
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(2, 0, 4, 0),
-    prodvers=(2, 0, 4, 0),
+    filevers=(2, 0, 5, 0),
+    prodvers=(2, 0, 5, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -19,12 +19,12 @@ VSVersionInfo(
           [
             StringStruct("CompanyName", "Dicteer"),
             StringStruct("FileDescription", "Dicteer - offline voice to text"),
-            StringStruct("FileVersion", "2.0.4.0"),
+            StringStruct("FileVersion", "2.0.5.0"),
             StringStruct("InternalName", "Dicteer"),
             StringStruct("LegalCopyright", "Dicteer"),
             StringStruct("OriginalFilename", "Dicteer.exe"),
             StringStruct("ProductName", "Dicteer"),
-            StringStruct("ProductVersion", "2.0.4"),
+            StringStruct("ProductVersion", "2.0.5"),
           ],
         )
       ]
