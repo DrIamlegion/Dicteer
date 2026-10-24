@@ -337,7 +337,7 @@ jobs:
           # --notes is prepended to the generated notes, so the downloader learns
           # about the SmartScreen prompt before they run the file.
           if [[ "$SIGNED" != 'true' ]]; then
-            flags+=(--notes 'This build is **unsigned**, so Windows SmartScreen shows an unknown publisher the first time you run it. Choose **More info** then **Run anyway**. Set FREEBUFF_SIGN_PFX_BASE64 and FREEBUFF_SIGN_PFX_PASSWORD in the repository secrets to publish a signed installer.')
+            flags+=(--notes 'This build is **unsigned**, so Windows SmartScreen shows an unknown publisher the first time you run it. Choose **More info** then **Run anyway**. To publish a signed installer, either set the SignPath variables (`SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG`, `SIGNPATH_POLICY_SLUG`, `SIGNPATH_EXE_CONFIG`, `SIGNPATH_SETUP_CONFIG`) plus the `SIGNPATH_API_TOKEN` secret, or add a certificate through `FREEBUFF_SIGN_PFX_BASE64` and `FREEBUFF_SIGN_PFX_PASSWORD`.')
           fi
           # v1.7.0-beta.1 and similar are published as pre-releases.
           if [[ "$TAG" == *-* ]]; then flags+=(--prerelease); fi
