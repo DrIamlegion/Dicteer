@@ -20,7 +20,7 @@
     listening: true,
     current: "idle",
     hotkeyLabel: "F9",
-    version: "2.0.2",
+    version: "2.0.3",
     models: [],
     cloud: { backend: "local", has_key: false, model: "whisper-large-v3-turbo", free_limits: "", keys_url: "" },
     configPath: "",
@@ -1696,7 +1696,7 @@
             { id: "Microfoon (USB-headset)", name: "Microfoon (USB-headset)", label: "Microfoon (USB-headset)", index: 3, default: false, api: "Windows WASAPI", rate: 48000 },
           ],
           cloud: cloudPayload(),
-          autostart: false, hotkey_label: "F9", version: "2.0.2 (demo)",
+          autostart: false, hotkey_label: "F9", version: "2.0.3 (demo)",
           crash_log_path: "crash.log (demo)",
           models: MODEL_ORDER.concat(["tiny", "base", "small", "medium"].map((name) => `${name}.en`)),
           model_dir: "C:\\Users\\gebruiker\\AppData\\Roaming\\Dicteer\\models",
@@ -1833,7 +1833,7 @@
         await new Promise((resolve) => setTimeout(resolve, 350));
         return {
           ok: true,
-          current: "2.0.2",
+          current: "2.0.3",
           latest: "2.1.0",
           available: true,
           name: "Dicteer v2.1.0",

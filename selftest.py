@@ -50,6 +50,14 @@ def test_config() -> None:
     check("config loads with all keys", not missing, f"missing={missing}" if missing else str(app.CONFIG_PATH))
     check("config hotkey is set", bool(cfg.get("hotkey")), cfg.get("hotkey"))
 
+    # A first install seeds this file, not DEFAULT_CONFIG, so the shipped
+    # vocabulary can drift from the product name without anything noticing.
+    seeded = json.loads(
+        (app.APP_DIR / "installer" / "default-config.json").read_text(encoding="utf-8")
+    )
+    prompt = str(seeded.get("initial_prompt") or "")
+    check("the seeded config biases the product name", "Dicteer" in prompt, prompt)
+
 
 def test_resample() -> None:
     t = np.linspace(0, 1.0, 48000, endpoint=False)

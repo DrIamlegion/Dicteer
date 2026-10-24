@@ -13,7 +13,7 @@
   "mode": "paste",
   "restore_clipboard": true,
   "post_space": true,
-  "initial_prompt": "Freebuff, Codebuff, React, TypeScript, useEffect, WebSocket, API, CSS, backoff",
+  "initial_prompt": "Dicteer, Freebuff, Codebuff, React, TypeScript, useEffect, WebSocket, API, CSS, backoff",
   "beeps": true,
   "learn_from_corrections": true,
   "online_backend": "local"

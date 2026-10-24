@@ -456,7 +456,7 @@ dictate.bat                        console mode (no window, no tray icon)
 .venv\Scripts\python.exe dictate.py --test-wav sample_tts.wav
 .venv\Scripts\python.exe dictate.py --once 5            record 5 s, print text, exit
 
-.venv\Scripts\python.exe selftest.py     272 checks: config, audio, models, overlay, tray, settings, learning, versions, placement
+.venv\Scripts\python.exe selftest.py     273 checks: config, audio, models, overlay, tray, settings, learning, versions, placement
 .venv\Scripts\python.exe verify_ui.py    60 checks: the real window and bridge, live text, correction learning, history, mic picker, mic test, quit
 .venv\Scripts\python.exe verify_tray.py  33 checks: tray, window, close-to-tray, hold-to-talk, single instance
 pwsh -File setup.ps1                     reinstall deps / re-download model
@@ -537,7 +537,7 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.2.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.3.exe`:
 the status is `Valid` once Windows trusts the chain. Freshly issued OV
 certificates may still trip SmartScreen until the file has download
 reputation; EV certificates and Trusted Signing start with reputation.
