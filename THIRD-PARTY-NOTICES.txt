@@ -1,0 +1,190 @@
+Dicteer - third-party notices
+=============================
+
+Dicteer is built from open-source software and ships some of it inside this
+installation. This file says what is included, under which licence, and where
+its source is. The complete text of the long licences sits in the licenses
+folder next to this file.
+
+Dicteer itself is MIT licensed; see LICENSE. Its source is at
+https://github.com/DrIamlegion/Dicteer
+
+
+1. The program itself
+---------------------
+
+Dicteer
+  License: MIT
+  Copyright (c) 2026 DrIamlegion
+
+
+2. GPL components - these make the bundled media libraries GPL
+--------------------------------------------------------------
+
+FFmpeg (libavcodec, libavformat, libavfilter, libavdevice, libavutil,
+swresample, swscale)
+  Files: _internal\av.libs\av*.dll, sw*.dll
+  License: GNU GPL version 3
+  Copyright (C) 2000-2025 the FFmpeg developers.
+  FFmpeg is a trademark of Fabrice Bellard, originator of the FFmpeg project.
+
+  This build comes from the PyAV 15.1.0 wheel. Its configuration enables the
+  GPL-only encoders libx264 and libx265, together with --enable-version3, so
+  the resulting FFmpeg libraries are licensed under GPLv3 rather than the LGPL
+  that a plain FFmpeg build uses. Dicteer uses those libraries - through PyAV -
+  only to decode the audio that Whisper transcribes.
+
+x264
+  Files: _internal\av.libs\libx264-165-*.dll
+  License: GNU GPL version 2 or later
+  Copyright (C) 2003-2025 x264 project
+  Source: https://code.videolan.org/videolan/x264
+
+x265
+  Files: _internal\av.libs\libx265-*.dll
+  License: GNU GPL version 2 or later
+  Copyright (C) 2013-2025 MulticoreWare, Inc.
+  Source: https://bitbucket.org/multicoreware/x265_git
+
+These three are shipped unmodified, as released by their projects. The
+corresponding source code for the exact libraries in this installation is
+available at the addresses above; you may also request a copy from whoever
+distributed this installer. The full licence texts are in
+licenses\GPL-3.0.txt and licenses\GPL-2.0.txt.
+
+
+3. LGPL components
+------------------
+
+pynput 1.8.2 - global keyboard and mouse listeners
+  License: GNU LGPL version 3
+  Copyright (C) 2015-2025 Moses Palmér
+
+pystray 0.19.5 - the notification-area icon
+  License: GNU LGPL version 3
+  Copyright (C) 2016-2025 Moses Palmér
+
+Both are pure Python and are installed as readable source files in
+_internal\pynput and _internal\pystray. You may replace those files with your
+own modified versions and keep using Dicteer; nothing in the app checks them.
+The full licence text is in licenses\LGPL-3.0.txt.
+
+
+4. Permissively licensed components
+-----------------------------------
+
+  Component              Version   License
+  ---------------------  --------  --------------------------------------------
+  PyAV (av)              15.1.0    BSD 3-Clause
+  click                  8.5.0     BSD 3-Clause
+  CTranslate2            4.8.3     MIT
+  faster-whisper         1.2.1     MIT
+  httpcore2              2.16.0    BSD 3-Clause
+  httpx2                 2.16.0    BSD 3-Clause
+  huggingface_hub        2.3.0     Apache License 2.0
+  numpy                  2.5.4     BSD 3-Clause, plus 0BSD, MIT, Zlib, CC0-1.0
+  onnxruntime            1.31.0    MIT
+  Pillow                 13.0.0    MIT-CMU
+  pythonnet              3.2.1     MIT
+  pywebview              6.2.1     BSD 3-Clause
+  sounddevice            0.5.6     MIT
+  tokenizers             0.23.3    Apache License 2.0
+  tqdm                   4.70.1    MPL 2.0 and MIT
+
+Each Python distribution in _internal\*.dist-info carries its own metadata and,
+where the project ships one, its own licence file.
+
+The Python runtime and its standard library
+  License: Python Software Foundation License 2.0
+  Copyright (c) 2001-2025 Python Software Foundation.
+
+Tcl/Tk 8.6 (the file dialogs and message boxes)
+  License: BSD-style Tcl/Tk licence, Copyright (C) 1987-2025 Regents of the
+  University of California and others.
+
+OpenSSL 3 (used for HTTPS)
+  License: Apache License 2.0
+
+libffi, zlib, libiconv and the MinGW runtime libraries (libgcc, libstdc++,
+libwinpthread)
+  Licenses: MIT, Zlib, LGPL 2.1 or later with the standard runtime exception.
+
+Microsoft Visual C++ and Universal C Runtime files (vcruntime140.dll,
+ucrtbase.dll)
+  Redistributed under the Microsoft Visual Studio licence terms.
+
+Qt is not used and not bundled. The window is rendered by the Microsoft Edge
+WebView2 runtime, which Windows installs and updates itself; no part of it is
+packaged here.
+
+
+5. Speech models
+----------------
+
+The Whisper models are not part of this installer. Dicteer downloads them on
+first use, from the Hugging Face hub, into %APPDATA%\Dicteer\Models:
+  faster-whisper (Systran) - MIT
+  OpenAI Whisper weights - MIT
+The Groq online backend, when you turn it on, processes audio on Groq's
+servers under Groq's own terms and sends nothing else.
+
+
+6. Full licence texts
+---------------------
+
+  licenses\GPL-3.0.txt     GNU General Public License version 3
+  licenses\GPL-2.0.txt     GNU General Public License version 2
+  licenses\LGPL-3.0.txt    GNU Lesser General Public License version 3
+  licenses\Apache-2.0.txt  Apache License version 2.0
+
+The short permissive licences, as used by the components above:
+
+MIT License
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+  THE SOFTWARE.
+
+BSD 3-Clause License
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are met:
+
+  1. Redistributions of source code must retain the above copyright notice,
+     this list of conditions and the following disclaimer.
+  2. Redistributions in binary form must reproduce the above copyright notice,
+     this list of conditions and the following disclaimer in the documentation
+     and/or other materials provided with the distribution.
+  3. Neither the name of the copyright holder nor the names of its
+     contributors may be used to endorse or promote products derived from this
+     software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  POSSIBILITY OF SUCH DAMAGE.
+
+Apache License 2.0
+
+  The full text is in licenses\Apache-2.0.txt.

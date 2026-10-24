@@ -20,10 +20,10 @@ BrandingText "Dicteer"
 !include "x64.nsh"
 
 !ifndef APP_VERSION
-  !define APP_VERSION "2.0.6"
+  !define APP_VERSION "2.0.7"
 !endif
 !ifndef APP_FILEVERSION
-  !define APP_FILEVERSION "2.0.6.0"
+  !define APP_FILEVERSION "2.0.7.0"
 !endif
 
 !define APP_NAME "Dicteer"
@@ -173,6 +173,18 @@ Section "$(SecApp)" SEC_APP
   File /r "${SOURCE_DIR}\*.*"
   File "${ROOT}\installer\default-config.json"
 
+  ; Licence documents: the MIT text for Dicteer itself, and the notices for
+  ; everything bundled inside it - the GPL media libraries included. They are
+  ; installed as plain files so they can be read without starting the app.
+  File "${ROOT}\LICENSE"
+  File "${ROOT}\THIRD-PARTY-NOTICES.txt"
+  SetOutPath "$INSTDIR\licenses"
+  File "${ROOT}\licenses\GPL-3.0.txt"
+  File "${ROOT}\licenses\GPL-2.0.txt"
+  File "${ROOT}\licenses\LGPL-3.0.txt"
+  File "${ROOT}\licenses\Apache-2.0.txt"
+  SetOutPath "$INSTDIR"
+
   ; First install only: seed the Dutch defaults the app is delivered with.
   ; An existing config (upgrade, reinstall) is never touched. When 1.x data is
   ; waiting under the old name, leave this folder empty so that the app's own
@@ -246,6 +258,9 @@ Section "Uninstall"
   Delete "$INSTDIR\${APP_EXE}"
   Delete "$INSTDIR\uninstall.exe"
   Delete "$INSTDIR\default-config.json"
+  Delete "$INSTDIR\LICENSE"
+  Delete "$INSTDIR\THIRD-PARTY-NOTICES.txt"
+  RMDir /r "$INSTDIR\licenses"
   RMDir /r "$INSTDIR\_internal"
   RMDir "$INSTDIR"
 

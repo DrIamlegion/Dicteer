@@ -551,7 +551,7 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.6.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.7.exe`:
 the status is `Valid` once Windows trusts the chain. SmartScreen is a separate
 matter: the prompt fades only as the publisher's reputation grows, and that is
 as true for EV certificates as for OV ones.
@@ -733,3 +733,10 @@ here or in the Startup folder.
 ## License
 
 [MIT](LICENSE) - use it, change it, ship it, sell it; keep the copyright notice.
+
+The installer also puts the licence paperwork on disk: `LICENSE`,
+[THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt) and a `licenses` folder with
+the full GPLv3, GPLv2, LGPLv3 and Apache-2.0 texts, all under
+`%LOCALAPPDATA%\Programs\Dicteer`. Read the notices before you redistribute a
+build: the media libraries in `_internal\av.libs` (FFmpeg with x264 and x265)
+are GPLv3, so a Dicteer you pass on has to carry those terms with it.

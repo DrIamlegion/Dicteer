@@ -1190,6 +1190,42 @@ def test_version_numbers() -> None:
           fixed("geen nummers hier") == "geen nummers hier", fixed("geen nummers hier"))
 
 
+def test_licence_notices() -> None:
+    """The installer carries the MIT text and the notices for what it bundles."""
+    root = app.APP_DIR
+    notices_path = root / "THIRD-PARTY-NOTICES.txt"
+    notices = notices_path.read_text(encoding="utf-8") if notices_path.exists() else ""
+    check("the third-party notices are in the project", bool(notices), str(notices_path))
+    # The bundled FFmpeg is GPL because it enables these two encoders; a
+    # notices file that forgets them is worse than none at all.
+    for needle in ("FFmpeg", "libx264", "libx265", "GPL version 3", "LGPL version 3"):
+        check(f"the notices name {needle}", needle in notices)
+
+    licence_path = root / "LICENSE"
+    licence = licence_path.read_text(encoding="utf-8") if licence_path.exists() else ""
+    check("the project licence is MIT", licence.startswith("MIT License"))
+
+    texts = {
+        "GPL-3.0.txt": "GNU GENERAL PUBLIC LICENSE",
+        "GPL-2.0.txt": "GNU GENERAL PUBLIC LICENSE",
+        "LGPL-3.0.txt": "GNU LESSER GENERAL PUBLIC LICENSE",
+        "Apache-2.0.txt": "Apache License",
+    }
+    for name, heading in texts.items():
+        path = root / "licenses" / name
+        body = path.read_text(encoding="utf-8") if path.exists() else ""
+        check(f"the {name} text is included", heading in body, f"{len(body)} bytes")
+
+    nsi_path = root / "installer" / "Dicteer.nsi"
+    nsi = nsi_path.read_text(encoding="utf-8") if nsi_path.exists() else ""
+    for name in ("LICENSE", "THIRD-PARTY-NOTICES.txt"):
+        check(f"the installer ships {name}", f'File "${{ROOT}}\\{name}"' in nsi)
+        check(f"the uninstaller removes {name}", f'Delete "$INSTDIR\\{name}"' in nsi)
+    for name in texts:
+        check(f"the installer ships licenses\\{name}", f'File "${{ROOT}}\\licenses\\{name}"' in nsi)
+    check("the uninstaller removes the licenses folder", 'RMDir /r "$INSTDIR\\licenses"' in nsi)
+
+
 def test_cloud_credentials() -> None:
     """The key is encrypted, round-trips, and never appears in the file."""
     import tempfile
@@ -1932,6 +1968,7 @@ def main() -> int:
     test_window_placement()
     test_learning()
     test_version_numbers()
+    test_licence_notices()
     test_cloud_credentials()
     test_cloud_http()
     test_cloud_failure_message()
