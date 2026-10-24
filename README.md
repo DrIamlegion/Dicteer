@@ -510,10 +510,17 @@ The app then keeps its config, history and models there.
 ## Code signing
 
 Windows shows **Unknown publisher** until the exe carries a signature from a
-certificate it trusts. That trust comes from a certificate authority - an OV or
-EV code-signing certificate, or Microsoft's Azure Trusted Signing. A
-self-signed certificate signs the files but does *not* change the SmartScreen
-warning; it is only useful on machines that import its root certificate.
+certificate it trusts. That trust comes from a certificate authority: an OV or
+EV code-signing certificate, Microsoft's Azure Artifact Signing (formerly
+Trusted Signing), or - for open source - SignPath Foundation. A self-signed
+certificate signs the files but does *not* change the SmartScreen warning; it
+is only useful on machines that import its root certificate.
+
+No signature removes SmartScreen on day one. Since 2024 even EV signatures go
+through the same reputation building as OV ones, so the first releases of a new
+publisher can still show the prompt while reputation accumulates. What a
+signature changes immediately is the publisher name - no more "Unknown
+publisher" - and that is also what antivirus reputation checks weigh.
 
 The build signs both `Dicteer.exe` and the setup when a certificate is
 configured:
@@ -537,20 +544,67 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.3.exe`:
-the status is `Valid` once Windows trusts the chain. Freshly issued OV
-certificates may still trip SmartScreen until the file has download
-reputation; EV certificates and Trusted Signing start with reputation.
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.4.exe`:
+the status is `Valid` once Windows trusts the chain. SmartScreen is a separate
+matter: the prompt fades only as the publisher's reputation grows, and that is
+as true for EV certificates as for OV ones.
 
 Hardware tokens sign through the thumbprint path (Windows asks for the PIN).
-Azure Trusted Signing needs Microsoft's `signtool` with its dlib: sign
+Azure Artifact Signing needs Microsoft's `signtool` with its dlib: sign
 `dist\Dicteer\Dicteer.exe` before building the installer and
 the setup afterwards with that tool instead of `sign.ps1`.
 
+### Code signing policy
+
+Free code signing provided by [SignPath.io](https://signpath.io/), certificate
+by [SignPath Foundation](https://signpath.org/).
+
+* Committers and reviewers: the maintainer, [@DrIamlegion](https://github.com/DrIamlegion)
+* Approvers: [@DrIamlegion](https://github.com/DrIamlegion)
+
+This program will not transfer any information to other networked systems
+unless specifically requested by the user or the person installing or operating
+it. The optional Groq backend is off by default; audio leaves the machine only
+after the user selects it and stores their own key.
+
+### Signing releases with SignPath Foundation
+
+SignPath Foundation signs qualifying open-source projects at no cost; the
+certificate belongs to the foundation, so the signature names it as the
+publisher. Every release is approved by hand in the SignPath web UI, and the
+workflow only submits requests for `v*` tags.
+
+The repository is signed in two passes, because the installer embeds the app
+exe: `Dicteer.exe` is built, signed and downloaded back first, then the
+installer is packaged around the signed exe and signed itself. Reversing the
+order would ship an installer containing an unsigned exe. Both passes verify
+`Get-AuthenticodeSignature` before continuing.
+
+Set these repository variables once the SignPath project exists:
+
+| Variable | Value |
+| --- | --- |
+| `SIGNPATH_ORGANIZATION_ID` | the organization id (a GUID) from SignPath |
+| `SIGNPATH_PROJECT_SLUG` | project slug, e.g. `dicteer` |
+| `SIGNPATH_POLICY_SLUG` | signing policy slug, e.g. `release-signing` |
+| `SIGNPATH_EXE_CONFIG` | artifact configuration for `Dicteer.exe` |
+| `SIGNPATH_SETUP_CONFIG` | artifact configuration for `Dicteer-Setup-*.exe` |
+
+and one secret, `SIGNPATH_API_TOKEN`, for a SignPath user with submitter
+rights. Nothing is signed while these are empty: the workflow builds exactly as
+before and publishes an unsigned installer.
+
+SignPath requires an artifact configuration per kind of file. Both are a
+`<zip-file>` at the root, because `actions/upload-artifact` stores the upload as
+a ZIP; the exe configuration accepts `Dicteer.exe`, the setup configuration
+accepts `Dicteer-Setup-*.exe`.
+
 On GitHub, [.github/workflows/build-installer.yml](.github/workflows/build-installer.yml)
 runs the same build on a Windows runner for pushes, pull requests and `v*`
-tags. It signs when the repository secrets `FREEBUFF_SIGN_PFX_BASE64` (the .pfx,
-base64-encoded) and `FREEBUFF_SIGN_PFX_PASSWORD` are set; without them the build
+tags. It signs through either route. A certificate in the repository secrets
+(`FREEBUFF_SIGN_PFX_BASE64`, the .pfx base64-encoded, plus
+`FREEBUFF_SIGN_PFX_PASSWORD`) takes precedence; with those absent, a tag is
+signed through the SignPath variables above. With neither configured the build
 is still published, and the release notes say the installer is unsigned and how
 to get past the SmartScreen prompt. It verifies the result and uploads the
 setup exe as a workflow artifact. CI byte-compiles instead of running the

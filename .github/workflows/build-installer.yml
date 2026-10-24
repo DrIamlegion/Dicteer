@@ -11,6 +11,17 @@ name: Build Windows installer
 # Repository secrets:
 #   FREEBUFF_SIGN_PFX_BASE64       the .pfx file, base64-encoded
 #   FREEBUFF_SIGN_PFX_PASSWORD     its password
+#   SIGNPATH_API_TOKEN             SignPath API token with submitter rights
+#
+# Repository variables (SignPath Foundation, free for open source):
+#   SIGNPATH_ORGANIZATION_ID       SignPath organization id (a GUID)
+#   SIGNPATH_PROJECT_SLUG          project slug, e.g. dicteer
+#   SIGNPATH_POLICY_SLUG           signing policy slug, e.g. release-signing
+#   SIGNPATH_EXE_CONFIG            artifact configuration for Dicteer.exe
+#   SIGNPATH_SETUP_CONFIG          artifact configuration for the setup exe
+#
+# SignPath signing runs only for `v*` tags, because every request waits for a
+# maintainer's approval. Without the token the workflow builds unsigned.
 #
 # Create the first with (PowerShell):
 #   [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\certs\freebuff.pfx"))
@@ -39,6 +50,25 @@ jobs:
     env:
       SIGN_PFX_BASE64: ${{ secrets.FREEBUFF_SIGN_PFX_BASE64 }}
       FREEBUFF_SIGN_PFX_PASSWORD: ${{ secrets.FREEBUFF_SIGN_PFX_PASSWORD }}
+      # Free code signing for open source through SignPath Foundation. The
+      # repository is signed in two passes (app exe, then the installer that
+      # embeds it) and only for tags, because every request needs a maintainer
+      # to approve it. Empty values mean the build stays unsigned, as before.
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+      SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+      SIGNPATH_PROJECT_SLUG: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+      SIGNPATH_POLICY_SLUG: ${{ vars.SIGNPATH_POLICY_SLUG }}
+      SIGNPATH_EXE_CONFIG: ${{ vars.SIGNPATH_EXE_CONFIG }}
+      SIGNPATH_SETUP_CONFIG: ${{ vars.SIGNPATH_SETUP_CONFIG }}
+      # One flag for all five values, so a half-filled configuration falls
+      # back to an unsigned build instead of failing at the signing step.
+      SIGNPATH_READY: ${{ secrets.SIGNPATH_API_TOKEN != '' && vars.SIGNPATH_ORGANIZATION_ID != '' && vars.SIGNPATH_PROJECT_SLUG != '' && vars.SIGNPATH_POLICY_SLUG != '' && vars.SIGNPATH_EXE_CONFIG != '' && vars.SIGNPATH_SETUP_CONFIG != '' }}
+
+    # Reading the workflow's own artifacts (what SignPath's action does) needs
+    # actions: read on top of the repository contents.
+    permissions:
+      contents: read
+      actions: read
 
     steps:
       - name: Check out
@@ -123,23 +153,110 @@ jobs:
       # The self-test suite loads Whisper models, so CI only byte-compiles and
       # builds; run .\build-installer.ps1 locally (without -SkipTests) for the
       # model-heavy checks.
-      - name: Build the app and installer
+      - name: Build the app and installer (local certificate)
+        if: env.SIGN_PFX_BASE64 != ''
         shell: pwsh
         run: |
-          if ($env:FREEBUFF_SIGN_PFX) {
-            if (-not $env:FREEBUFF_SIGN_PFX_PASSWORD) {
-              throw 'FREEBUFF_SIGN_PFX_BASE64 is set but FREEBUFF_SIGN_PFX_PASSWORD is missing.'
-            }
-            ./build-installer.ps1 -SkipTests -RequireSignature
-            'SIGNED=true' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          } else {
-            Write-Warning 'No signing certificate configured; the installer is unsigned and Windows will call it an unknown publisher.'
-            if ("${{ github.ref_type }}" -eq 'tag') {
-              Write-Warning 'Publishing this tag unsigned; add the signing secrets to publish a signed installer.'
-            }
-            ./build-installer.ps1 -SkipTests
-            'SIGNED=false' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          if (-not $env:FREEBUFF_SIGN_PFX_PASSWORD) {
+            throw 'FREEBUFF_SIGN_PFX_BASE64 is set but FREEBUFF_SIGN_PFX_PASSWORD is missing.'
           }
+          ./build-installer.ps1 -SkipTests -RequireSignature
+          'SIGNED=true' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      # SignPath signs one artifact per request, and the installer embeds the
+      # app exe, so the exe is signed first and packaged afterwards. Reversing
+      # that order would ship an installer holding an unsigned exe.
+      - name: Build the app exe for signing
+        if: env.SIGN_PFX_BASE64 == '' && env.SIGNPATH_READY == 'true' && github.ref_type == 'tag'
+        shell: pwsh
+        run: ./build-installer.ps1 -SkipTests -ExeOnly
+
+      - name: Upload the app exe for signing
+        id: upload-exe
+        if: env.SIGN_PFX_BASE64 == '' && env.SIGNPATH_READY == 'true' && github.ref_type == 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-dicteer-exe
+          path: dist/Dicteer/Dicteer.exe
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Sign the app exe with SignPath
+        if: env.SIGN_PFX_BASE64 == '' && env.SIGNPATH_READY == 'true' && github.ref_type == 'tag'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_EXE_CONFIG }}
+          github-artifact-id: ${{ steps.upload-exe.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed-exe
+
+      - name: Use the signed app exe
+        if: env.SIGN_PFX_BASE64 == '' && env.SIGNPATH_READY == 'true' && github.ref_type == 'tag'
+        shell: pwsh
+        run: |
+          $signed = Get-ChildItem 'signed-exe' -Recurse -Filter 'Dicteer.exe' | Select-Object -First 1
+          if (-not $signed) { throw 'SignPath returned no Dicteer.exe.' }
+          Copy-Item $signed.FullName 'dist\Dicteer\Dicteer.exe' -Force
+          $check = Get-AuthenticodeSignature 'dist\Dicteer\Dicteer.exe'
+          if ($check.Status -ne 'Valid') { throw "The signed app exe is not valid: $($check.Status)" }
+          Write-Host "App exe signed by $($check.SignerCertificate.Subject)"
+
+      - name: Build the installer around the signed exe
+        if: env.SIGN_PFX_BASE64 == '' && env.SIGNPATH_READY == 'true' && github.ref_type == 'tag'
+        shell: pwsh
+        run: ./build-installer.ps1 -SkipTests -InstallerOnly
+
+      - name: Upload the installer for signing
+        id: upload-setup
+        if: env.SIGN_PFX_BASE64 == '' && env.SIGNPATH_READY == 'true' && github.ref_type == 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-dicteer-setup
+          path: dist/Dicteer-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Sign the installer with SignPath
+        if: env.SIGN_PFX_BASE64 == '' && env.SIGNPATH_READY == 'true' && github.ref_type == 'tag'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_SETUP_CONFIG }}
+          github-artifact-id: ${{ steps.upload-setup.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed-setup
+
+      - name: Use the signed installer
+        if: env.SIGN_PFX_BASE64 == '' && env.SIGNPATH_READY == 'true' && github.ref_type == 'tag'
+        shell: pwsh
+        run: |
+          $signed = Get-ChildItem 'signed-setup' -Recurse -Filter 'Dicteer-Setup-*.exe' | Select-Object -First 1
+          if (-not $signed) { throw 'SignPath returned no installer.' }
+          $target = Get-ChildItem 'dist\Dicteer-Setup-*.exe' | Select-Object -First 1
+          if (-not $target) { throw 'No installer was produced.' }
+          Copy-Item $signed.FullName $target.FullName -Force
+          $check = Get-AuthenticodeSignature $target.FullName
+          if ($check.Status -ne 'Valid') { throw "The signed installer is not valid: $($check.Status)" }
+          Write-Host "Installer signed by $($check.SignerCertificate.Subject)"
+          'SIGNED=true' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build the app and installer (no signing configured)
+        if: env.SIGN_PFX_BASE64 == '' && (env.SIGNPATH_READY != 'true' || github.ref_type != 'tag')
+        shell: pwsh
+        run: |
+          Write-Warning 'No signing configured for this build; Windows will call the installer an unknown publisher.'
+          if ("${{ github.ref_type }}" -eq 'tag') {
+            Write-Warning 'Publishing this tag unsigned; set the SignPath variables or the certificate secrets to publish a signed installer.'
+          }
+          ./build-installer.ps1 -SkipTests
+          'SIGNED=false' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Record whether the build is signed
         id: signature
@@ -165,7 +282,7 @@ jobs:
             "| Dicteer.exe | $($exe.Status) | $($exe.SignerCertificate.Subject) | $($null -ne $exe.TimeStamperCertificate) |"
           ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
 
-          if ($env:FREEBUFF_SIGN_PFX) {
+          if ($env:SIGNED -eq 'true') {
             if ($signature.Status -ne 'Valid' -or $exe.Status -ne 'Valid') {
               throw "The signature is not valid: setup=$($signature.Status) exe=$($exe.Status). Check the certificate chain."
             }

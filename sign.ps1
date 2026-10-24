@@ -25,6 +25,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# The comment above promises the environment variable, so honour it here too;
+# build-installer.ps1 passes -PfxPassword explicitly, but this script is also
+# run on its own.
+if (-not $PfxPassword) { $PfxPassword = $env:FREEBUFF_SIGN_PFX_PASSWORD }
+
 function Get-SigningCertificate {
     if ($PfxPath) {
         if (-not (Test-Path -LiteralPath $PfxPath)) {

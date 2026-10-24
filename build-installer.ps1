@@ -3,6 +3,11 @@
 #   .\build-installer.ps1              tests, then exe + installer
 #   .\build-installer.ps1 -SkipTests   exe + installer only
 #   .\build-installer.ps1 -ExeOnly     exe only, no installer
+#   .\build-installer.ps1 -InstallerOnly
+#                                      package the exe already in dist\Dicteer
+#                                      (used when a signing service signs the
+#                                      exe before the installer wraps it)
+
 #
 # Output:
 #   dist\Dicteer\                      the app folder (run the .exe in it)
@@ -13,6 +18,7 @@
 param(
     [switch]$SkipTests,
     [switch]$ExeOnly,
+    [switch]$InstallerOnly,
 
     # Code signing. A .pfx file with its password, or the thumbprint of a
     # certificate in CurrentUser\My / LocalMachine\My (also works for a token).
@@ -54,39 +60,47 @@ if ($LASTEXITCODE -ne 0) {
     throw "installer\version_info.txt does not match APP_VERSION $version (see above); fix it before building."
 }
 
-if (-not $SkipTests) {
-    Write-Host 'Running self-tests...' -ForegroundColor Cyan
-    & $python selftest.py
-    if ($LASTEXITCODE -ne 0) { throw "Self-tests failed (exit $LASTEXITCODE)" }
-}
-
-Write-Host 'Installing build dependencies...' -ForegroundColor Cyan
-& $python -m pip install --disable-pip-version-check --quiet pyinstaller
-if ($LASTEXITCODE -ne 0) { throw "pip install failed (exit $LASTEXITCODE)" }
-
-Write-Host 'Building the app folder (this takes a few minutes)...' -ForegroundColor Cyan
-& $python -m PyInstaller --noconfirm --clean Dicteer.spec
-if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed (exit $LASTEXITCODE)" }
-
 $appExe = Join-Path $PSScriptRoot 'dist\Dicteer\Dicteer.exe'
-if (-not (Test-Path $appExe)) { throw "PyInstaller did not produce $appExe" }
-Write-Host "  $appExe" -ForegroundColor Green
-
-# A package hook can copy compiled caches into the app folder, and a .pyc
-# records the absolute path it was built from - the builder's own user folder.
-# They are never needed at runtime, so nothing built here ships one.
-Get-ChildItem -LiteralPath (Split-Path $appExe) -Directory -Filter '__pycache__' -Recurse |
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-
 $signing = [bool]($PfxPath -or $CertThumbprint)
-if ($signing) {
-    Write-Host 'Signing the app...' -ForegroundColor Cyan
-    & (Join-Path $PSScriptRoot 'sign.ps1') -Path $appExe -PfxPath $PfxPath -PfxPassword $PfxPassword `
-        -Thumbprint $CertThumbprint -TimestampServer $TimestampServer
-} elseif ($RequireSignature) {
-    throw 'No signing certificate. Pass -PfxPath / -CertThumbprint or set FREEBUFF_SIGN_PFX / FREEBUFF_SIGN_THUMBPRINT.'
+
+if ($InstallerOnly) {
+    if (-not (Test-Path $appExe)) {
+        throw "-InstallerOnly needs an existing $appExe; run the build (or -ExeOnly) first."
+    }
+    Write-Host "Packaging the existing $appExe" -ForegroundColor Cyan
 } else {
-    Write-Warning 'Building an unsigned installer: Windows will show it as an unknown publisher.'
+    if (-not $SkipTests) {
+        Write-Host 'Running self-tests...' -ForegroundColor Cyan
+        & $python selftest.py
+        if ($LASTEXITCODE -ne 0) { throw "Self-tests failed (exit $LASTEXITCODE)" }
+    }
+
+    Write-Host 'Installing build dependencies...' -ForegroundColor Cyan
+    & $python -m pip install --disable-pip-version-check --quiet pyinstaller
+    if ($LASTEXITCODE -ne 0) { throw "pip install failed (exit $LASTEXITCODE)" }
+
+    Write-Host 'Building the app folder (this takes a few minutes)...' -ForegroundColor Cyan
+    & $python -m PyInstaller --noconfirm --clean Dicteer.spec
+    if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed (exit $LASTEXITCODE)" }
+
+    if (-not (Test-Path $appExe)) { throw "PyInstaller did not produce $appExe" }
+    Write-Host "  $appExe" -ForegroundColor Green
+
+    # A package hook can copy compiled caches into the app folder, and a .pyc
+    # records the absolute path it was built from - the builder's own user
+    # folder. They are never needed at runtime, so nothing built here ships one.
+    Get-ChildItem -LiteralPath (Split-Path $appExe) -Directory -Filter '__pycache__' -Recurse |
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+
+    if ($signing) {
+        Write-Host 'Signing the app...' -ForegroundColor Cyan
+        & (Join-Path $PSScriptRoot 'sign.ps1') -Path $appExe -PfxPath $PfxPath -PfxPassword $PfxPassword `
+            -Thumbprint $CertThumbprint -TimestampServer $TimestampServer
+    } elseif ($RequireSignature) {
+        throw 'No signing certificate. Pass -PfxPath / -CertThumbprint or set FREEBUFF_SIGN_PFX / FREEBUFF_SIGN_THUMBPRINT.'
+    } else {
+        Write-Warning 'Building an unsigned installer: Windows will show it as an unknown publisher.'
+    }
 }
 
 if ($ExeOnly) { return }
