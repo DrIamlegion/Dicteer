@@ -947,6 +947,23 @@ def test_crashlog() -> None:
         check("crash log is written next to the config", target.parent == Path(tmp))
 
 
+def append_faulthandler_dump(target: Path, label: str) -> None:
+    """Append what faulthandler writes for a Windows exception, verbatim.
+
+    ``label`` is whatever follows the colon, e.g. ``code 0x8001010d`` for a COM
+    error or ``access violation`` for a real native crash.
+    """
+    with Path(target).open("a", encoding="utf-8") as handle:
+        handle.write(
+            f"Windows fatal exception: {label}\n\n"
+            "Thread 0x00001b30 (most recent call first):\n"
+            '  File "threading.py", line 359 in wait\n'
+            '  File "tqdm\\_monitor.py", line 69 in run\n\n'
+            "Current thread 0x00003ad0 (most recent call first):\n"
+            '  File "webview\\platforms\\winforms.py", line 808 in create\n'
+        )
+
+
 def test_crash_notice() -> None:
     """Only an unclean run with a new crash report raises a startup notice."""
     import tempfile
@@ -983,6 +1000,49 @@ def test_crash_notice() -> None:
         crashlog.end_run()
         crashlog.set_enabled(False)
         check("cleaning up silences the next start", not crashlog.previous_run()["pending"])
+
+        # WebView2 raises RPC_E_CANTCALLOUT_ININPUTSYNCCALL, faulthandler dumps
+        # it, and the app carries on.  That dump must not be announced as a
+        # crash when the next window opens.
+        crashlog.set_enabled(True)
+        crashlog.begin_run(crashlog.previous_run(), logging=True)
+        append_faulthandler_dump(target, "code 0x8001010d")
+        crashlog.set_enabled(False)
+        previous = crashlog.previous_run()
+        check("a handled COM exception is not announced as a crash", not previous["pending"], str(previous))
+        crashlog.end_run()
+
+        crashlog.set_enabled(True)
+        crashlog.begin_run(crashlog.previous_run(), logging=True)
+        append_faulthandler_dump(target, "code 0xc0000005")
+        crashlog.set_enabled(False)
+        previous = crashlog.previous_run()
+        check("an unrecognised exception code is still announced", previous["pending"], str(previous))
+        crashlog.end_run()
+
+        crashlog.set_enabled(True)
+        crashlog.begin_run(crashlog.previous_run(), logging=True)
+        append_faulthandler_dump(target, "access violation")
+        crashlog.set_enabled(False)
+        previous = crashlog.previous_run()
+        check("a native access violation is still announced", previous["pending"], str(previous))
+        crashlog.end_run()
+
+        crashlog.set_enabled(True)
+        crashlog.begin_run(crashlog.previous_run(), logging=True)
+        append_faulthandler_dump(target, "code 0x8001010d")
+        try:
+            raise RuntimeError("crash after a COM dump")
+        except RuntimeError:
+            crashlog.write_report(target, *sys.exc_info(), source="selftest")
+        crashlog.set_enabled(False)
+        previous = crashlog.previous_run()
+        check(
+            "a real report after a COM dump is still announced",
+            previous["pending"],
+            str(previous),
+        )
+        crashlog.end_run()
 
         crashlog.install(
             enabled=False,
@@ -1219,6 +1279,13 @@ def test_cloud_failure_message() -> None:
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_POST(self):  # noqa: N802
+            # Drain the upload before answering: replying while the multipart
+            # body is still arriving makes Windows reset the loopback
+            # connection about one run in three, hiding the 401 from the
+            # client and failing this check for no good reason.
+            length = int(self.headers.get("Content-Length") or 0)
+            if length:
+                self.rfile.read(length)
             payload = b'{"error": {"message": "Invalid API Key"}}'
             self.send_response(401)
             self.send_header("Content-Type", "application/json")
