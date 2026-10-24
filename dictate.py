@@ -24,6 +24,8 @@ import threading
 import time
 from pathlib import Path
 
+import textfix
+
 APP_DIR = Path(__file__).resolve().parent
 FROZEN = bool(getattr(sys, "frozen", False))
 
@@ -711,15 +713,17 @@ class Dictator:
         return combined or None
 
     def _postprocess(self, text: str) -> str:
+        """The last step before delivery: corrections, then deterministic fixes."""
         callback = self.postprocess
-        if callback is None:
-            return text
-        try:
-            result = callback(text)
-            return " ".join(str(result if result is not None else text).split())
-        except Exception as exc:
-            log.debug("post-processing failed: %s", exc)
-            return text
+        if callback is not None:
+            try:
+                result = callback(text)
+                text = str(result if result is not None else text)
+            except Exception as exc:
+                log.debug("post-processing failed: %s", exc)
+        # Versions are put back together here rather than in the window, so the
+        # console, --test-wav and the overlay all behave the same way.
+        return " ".join(textfix.fix_versions(text).split())
 
     def transcribe_audio(self, audio) -> str:
         """Final transcript: the online backend when selected, local on failure."""

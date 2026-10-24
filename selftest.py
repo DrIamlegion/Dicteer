@@ -33,6 +33,7 @@ import dictate as app
 import history as history_mod
 import learning as learning_mod
 import settings as settings_mod
+import textfix
 
 FAILURES: list[str] = []
 
@@ -775,6 +776,9 @@ def test_shell_ui() -> None:
         check("the correction response carries the learning",
               corrected["learning"]["corrections"][0]["heard"] == "inluchtpagina", str(corrected["learning"]["corrections"]))
         check("the engine prompt gets technical vocabulary only", shell.learning.prompt_extra() == "", shell.learning.prompt_extra())
+        check("the shell puts a spoken version back together before delivery",
+              shell.dictator._postprocess("Dicteer versie 2.01") == "Dicteer versie 2.0.1",
+              shell.dictator._postprocess("Dicteer versie 2.01"))
 
         shell.cfg["learn_from_corrections"] = False
         second = shell.history.add("De inluchtpagina is weer traag.", duration=2.0, model="small", language="nl", mode="paste")
@@ -1054,6 +1058,43 @@ def test_learning() -> None:
         reloaded.clear()
         check("clearing forgets everything", reloaded.payload()["total"] == 0, str(reloaded.payload()))
         check("an empty store still applies text unchanged", reloaded.apply_text("niets te doen") == "niets te doen")
+
+
+def test_version_numbers() -> None:
+    """A spoken version keeps its components; decimals and part numbers do not."""
+
+    def fixed(text: str) -> str:
+        return textfix.fix_versions(text)
+
+    check("a spoken version keeps its components",
+          fixed("Dicteer versie 2.01") == "Dicteer versie 2.0.1", fixed("Dicteer versie 2.01"))
+    check("punctuation around the number survives",
+          fixed("versie 2.01, de nieuwe.") == "versie 2.0.1, de nieuwe.",
+          fixed("versie 2.01, de nieuwe."))
+    check("a three-part version is left alone",
+          fixed("versie 2.0.1") == "versie 2.0.1", fixed("versie 2.0.1"))
+    check("two-part versions stay two-part",
+          fixed("versie 10.12 is uit") == "versie 10.12 is uit", fixed("versie 10.12 is uit"))
+    check("a version with a single milestone is not invented",
+          fixed("versie 2.0") == "versie 2.0", fixed("versie 2.0"))
+    check("a decimal outside a version survives",
+          fixed("dat kost 2.05 euro") == "dat kost 2.05 euro", fixed("dat kost 2.05 euro"))
+    check("an IP address survives",
+          fixed("het adres is 192.168.0.1") == "het adres is 192.168.0.1",
+          fixed("het adres is 192.168.0.1"))
+    check("a list of versions is fixed throughout",
+          fixed("versies 2.01, 2.02 en 2.03") == "versies 2.0.1, 2.0.2 en 2.0.3",
+          fixed("versies 2.01, 2.02 en 2.03"))
+    check("a glued v keeps its prefix",
+          fixed("v2.01 staat klaar") == "v2.0.1 staat klaar", fixed("v2.01 staat klaar"))
+    check("English wording works too",
+          fixed("version 2.010 fixed it") == "version 2.0.10 fixed it",
+          fixed("version 2.010 fixed it"))
+    check("the word after the number ends the run",
+          fixed("versie 2.01 van Dicteer 2.05") == "versie 2.0.1 van Dicteer 2.05",
+          fixed("versie 2.01 van Dicteer 2.05"))
+    check("text without a dot is untouched",
+          fixed("geen nummers hier") == "geen nummers hier", fixed("geen nummers hier"))
 
 
 def test_cloud_credentials() -> None:
@@ -1790,6 +1831,7 @@ def main() -> int:
     test_crash_notice()
     test_window_placement()
     test_learning()
+    test_version_numbers()
     test_cloud_credentials()
     test_cloud_http()
     test_cloud_failure_message()

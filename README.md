@@ -238,6 +238,20 @@ single correction or word, or forget everything. Turning off **Leren van
 correcties** stops new learning; existing corrections stay active until you
 remove them. Nothing is learned from ordinary dictation you did not edit.
 
+### Versienummers
+
+Whisper houdt de delen van een uitgesproken versienummer niet altijd uit
+elkaar: "versie twee punt nul een" komt terug als `versie 2.01`, en dat leest
+als een decimaal. Staat er een versiewoord voor het nummer (`versie`,
+`version`, `build`, `release`, `update`, `patch`, of een vastgeplakte `v2.01`),
+dan zet Dicteer de delen terug: `versie 2.01` wordt `versie 2.0.1`, en in een
+rijtje `versies 2.01, 2.02 en 2.03` gebeurt dat voor alle drie.
+
+Alleen een tussenstuk dat met een nul begint wordt gesplitst, zodat
+`versie 10.12` en `2.05 euro` ongemoeid blijven. Laat Whisper een cijfer zelf
+weg ("versie 2.0"), dan valt dat niet meer te herstellen: zeg de delen dan
+losser, of corrigeer het in **Geschiedenis** — de app onthoudt die correctie.
+
 ---
 
 ## Online model (gratis)
@@ -307,10 +321,10 @@ optional: the final clip -> Groq (whisper-large-v3-turbo) -> text
   whatever you had copied.
 * Text is appended with a trailing space (`post_space`) so you can keep typing
   or dictating after it.
-* Learned corrections are applied between transcription and delivery, and the
-  learned vocabulary is added to the prompt on each pass. Both hooks live in
-  the engine (`postprocess` / `extra_prompt`), so the console path and the
-  window use the same behaviour.
+* Learned corrections are applied between transcription and delivery, followed
+  by the version rewrite from `textfix.py`, and the learned vocabulary is added
+  to the prompt on each pass. Both hooks live in the engine (`postprocess` /
+  `extra_prompt`), so the console path and the window use the same behaviour.
 * Whisper occasionally invents a short word out of microphone noise. A result
   that is a single word of three characters or fewer on a very quiet recording
   is discarded rather than pasted, and the VAD threshold is slightly stricter
@@ -442,7 +456,7 @@ dictate.bat                        console mode (no window, no tray icon)
 .venv\Scripts\python.exe dictate.py --test-wav sample_tts.wav
 .venv\Scripts\python.exe dictate.py --once 5            record 5 s, print text, exit
 
-.venv\Scripts\python.exe selftest.py     156 checks: config, audio, models, overlay, tray, settings, learning, placement
+.venv\Scripts\python.exe selftest.py     272 checks: config, audio, models, overlay, tray, settings, learning, versions, placement
 .venv\Scripts\python.exe verify_ui.py    60 checks: the real window and bridge, live text, correction learning, history, mic picker, mic test, quit
 .venv\Scripts\python.exe verify_tray.py  33 checks: tray, window, close-to-tray, hold-to-talk, single instance
 pwsh -File setup.ps1                     reinstall deps / re-download model
@@ -523,7 +537,7 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.1.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.2.exe`:
 the status is `Valid` once Windows trusts the chain. Freshly issued OV
 certificates may still trip SmartScreen until the file has download
 reputation; EV certificates and Trusted Signing start with reputation.
