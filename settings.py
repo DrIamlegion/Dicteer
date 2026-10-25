@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 
+import cloud
 import dictate
 
 MODELS = [
@@ -108,6 +109,13 @@ def apply_updates(current: dict, updates: dict) -> dict:
     if backend not in ONLINE_BACKENDS:
         raise SettingsError("Online model moet lokaal, Groq of Gemini zijn")
 
+    gemini_model = str(cfg.get("gemini_model") or "").strip()
+    choices = [entry["value"] for entry in cloud.GEMINI_MODELS]
+    if gemini_model not in choices:
+        if gemini_model:
+            raise SettingsError("Kies een Gemini-model uit de lijst")
+        gemini_model = cloud.GEMINI_MODEL
+
     device = cfg.get("input_device")
     if isinstance(device, str):
         device = device.strip()
@@ -125,6 +133,7 @@ def apply_updates(current: dict, updates: dict) -> dict:
             "language": language,
             "mode": mode,
             "online_backend": backend,
+            "gemini_model": gemini_model,
             "online_timeout_seconds": _as_int(
                 cfg.get("online_timeout_seconds", 30), "Online time-out", 5, 120
             ),

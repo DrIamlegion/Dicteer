@@ -43,14 +43,27 @@ GROQ_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 GROQ_KEYS_URL = "https://console.groq.com/keys"
 FREE_LIMITS = "20 verzoeken/min · 2.000/dag · 7.200 audio-seconden/uur"
 
-# Measured on a 5.4 s clip: this answers in 1.3 s; gemini-3.8-flash took over
-# two minutes because of its default thinking, which no dictation can wait for.
+# Measured on the same 5.4 s clip, with the vocabulary prompt: flash-lite
+# answered in 1.3 s, 3.6 Flash in 5.2 s with better punctuation, and 3.8 Flash
+# in 31 s and once over two minutes - too slow for the 30 s dictation timeout.
 GEMINI_MODEL = "gemini-3.5-flash-lite"
+GEMINI_MODELS = (
+    {
+        "value": "gemini-3.5-flash-lite",
+        "label": "3.5 Flash-Lite",
+        "note": "snelst, ongeveer 1 seconde per dictaat",
+    },
+    {
+        "value": "gemini-3.6-flash",
+        "label": "3.6 Flash",
+        "note": "nauwkeuriger en betere leestekens, ongeveer 5 seconden",
+    },
+)
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 GEMINI_KEYS_URL = "https://aistudio.google.com/app/apikey"
 GEMINI_LIMITS = "Gratis tier · daglimiet en snelheid verschillen per model (zie AI Studio)"
 
-USER_AGENT = "Dicteer/2.0.10"
+USER_AGENT = "Dicteer/2.0.11"
 
 # Every online provider the app can talk to. The window only ever sees these
 # fields, never a key: ``status`` copies them out for the settings card.
@@ -570,35 +583,51 @@ class CloudTranscriber:
         url: str | None = None,
         model: str | None = None,
         timeout: float = 30.0,
+        gemini_model: str | None = None,
     ):
         self.credentials = credentials
         self.timeout = float(timeout)
         self._url = url
         self._model = model
+        self._gemini_model = gemini_model or GEMINI_MODEL
         self._engine = None
         self.backend = ""
         self.use(backend or PROVIDER)
 
-    def use(self, backend: str) -> "CloudTranscriber":
+    def _model_for(self, provider: str) -> str:
+        if self._model:
+            return self._model
+        if provider == "gemini":
+            return self._gemini_model
+        return PROVIDERS[provider]["model"]
+
+    def use(self, backend: str, gemini_model: str | None = None) -> "CloudTranscriber":
+        """Follow the chosen backend, and the Gemini model when one is picked."""
+        if gemini_model:
+            self._gemini_model = str(gemini_model)
         name = str(backend or "").strip().lower()
         if name not in PROVIDERS:
             return self
-        if name == self.backend and self._engine is not None:
+        wanted = self._model_for(name)
+        if (
+            name == self.backend
+            and self._engine is not None
+            and getattr(self._engine, "model", None) == wanted
+        ):
             return self
         kind = GeminiTranscriber if name == "gemini" else GroqTranscriber
-        engine = kind(
+        self._engine = kind(
             self.credentials,
             url=self._url,
-            model=self._model or PROVIDERS[name]["model"],
+            model=wanted,
             timeout=self.timeout,
         )
         self.backend = name
-        self._engine = engine
         return self
 
     @property
     def model(self) -> str:
-        return self._model or PROVIDERS[self.backend]["model"]
+        return self._model_for(self.backend)
 
     def transcribe(
         self,
@@ -612,7 +641,9 @@ class CloudTranscriber:
         )
 
 
-def status(credentials: CredentialStore, backend: str = "local") -> dict:
+def status(
+    credentials: CredentialStore, backend: str = "local", gemini_model: str | None = None
+) -> dict:
     """What the window may know: which providers exist and who has a key.
 
     The key itself never leaves this module; the settings card only learns
@@ -629,21 +660,30 @@ def status(credentials: CredentialStore, backend: str = "local") -> dict:
             log.debug("could not check the %s key: %s", name, exc)
             keys[name] = False
     meta = PROVIDERS.get(chosen, {})
+    picked = str(gemini_model or "").strip()
+    if picked not in [entry["value"] for entry in GEMINI_MODELS]:
+        picked = GEMINI_MODEL
+    # The card shows the provider's own model next to a verdict; for Gemini that
+    # is whichever one the user picked, not the constant default.
+    providers = {
+        name: {
+            field: PROVIDERS[name][field]
+            for field in ("name", "model", "free_limits", "keys_url", "key_hint")
+        }
+        for name in PROVIDERS
+    }
+    providers["gemini"]["model"] = picked
     return {
         "backend": chosen,
         "provider": chosen if chosen != "local" else PROVIDER,
         "name": meta.get("name", "Lokaal (Whisper)"),
-        "model": meta.get("model", ""),
+        "model": picked if chosen == "gemini" else meta.get("model", ""),
+        "gemini_model": picked,
+        "gemini_models": [dict(entry) for entry in GEMINI_MODELS],
         "free_limits": meta.get("free_limits", ""),
         "keys_url": meta.get("keys_url", ""),
         "key_hint": meta.get("key_hint", ""),
         "has_key": bool(keys.get(chosen, False)),
         "keys": keys,
-        "providers": {
-            name: {
-                field: PROVIDERS[name][field]
-                for field in ("name", "model", "free_limits", "keys_url", "key_hint")
-            }
-            for name in PROVIDERS
-        },
+        "providers": providers,
     }

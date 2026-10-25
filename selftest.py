@@ -912,6 +912,27 @@ def test_settings_validation() -> None:
           settings_mod.apply_updates(base, {"online_backend": "groq"})["online_backend"] == "groq")
     check("the online backend can be switched to Gemini",
           settings_mod.apply_updates(base, {"online_backend": "gemini"})["online_backend"] == "gemini")
+    check("the Gemini model defaults to the fast one",
+          settings_mod.apply_updates(base, {"online_backend": "gemini"})["gemini_model"] == cloud.GEMINI_MODEL)
+    check("a slower Gemini model can be chosen",
+          settings_mod.apply_updates(
+              base, {"online_backend": "gemini", "gemini_model": "gemini-3.6-flash"}
+          )["gemini_model"] == "gemini-3.6-flash")
+    try:
+        settings_mod.apply_updates(
+            base, {"online_backend": "gemini", "gemini_model": "gemini-9-ultra"}
+        )
+    except settings_mod.SettingsError as exc:
+        check("an unknown Gemini model is refused", "Gemini-model" in str(exc), str(exc))
+    else:
+        check("an unknown Gemini model is refused", False, "no error raised")
+    check("every offered Gemini model is accepted",
+          all(
+              settings_mod.apply_updates(
+                  base, {"online_backend": "gemini", "gemini_model": entry["value"]}
+              )["gemini_model"] == entry["value"]
+              for entry in cloud.GEMINI_MODELS
+          )) 
     try:
         settings_mod.apply_updates(base, {"online_backend": "somewhere"})
     except settings_mod.SettingsError as exc:
@@ -1516,6 +1537,18 @@ def test_cloud_status() -> None:
               gemini["model"] == cloud.GEMINI_MODEL
               and gemini["keys_url"].startswith("https://")
               and gemini["key_hint"] == "AIza...")
+        slower = cloud.status(store, "gemini", "gemini-3.6-flash")
+        check("the status reports the chosen Gemini model",
+              slower["gemini_model"] == "gemini-3.6-flash"
+              and slower["model"] == "gemini-3.6-flash"
+              and slower["providers"]["gemini"]["model"] == "gemini-3.6-flash",
+              str(slower["model"]))
+        check("the window is offered the models and their notes",
+              [entry["value"] for entry in gemini["gemini_models"]]
+              == [entry["value"] for entry in cloud.GEMINI_MODELS]
+              and all(entry["note"] for entry in gemini["gemini_models"]))
+        check("an unknown Gemini model falls back to the fast one",
+              cloud.status(store, "gemini", "gemini-9-ultra")["gemini_model"] == cloud.GEMINI_MODEL)
         check("no key value reaches the window",
               gemini_key not in json.dumps(gemini))
         check("an unknown backend reports local",

@@ -474,6 +474,41 @@ def main() -> int:
                 check("the Gemini key is encrypted on disk too",
                       bool(raw_credentials) and gemini_key not in raw_credentials)
 
+                check(
+                    "the Gemini model picker is visible while Gemini is chosen",
+                    evaluate(window, "document.getElementById('gemini-model-field').hidden === false") is True,
+                )
+                offered = evaluate(
+                    window,
+                    "Array.from(document.getElementById('set-gemini-model').options).map((o) => o.value)",
+                )
+                check("the picker offers both Gemini models",
+                      offered == ["gemini-3.5-flash-lite", "gemini-3.6-flash"], str(offered))
+                evaluate(
+                    window,
+                    "(() => { const s=document.getElementById('set-gemini-model'); s.value='gemini-3.6-flash'; s.dispatchEvent(new Event('change')); })()",
+                )
+                evaluate(window, "document.getElementById('save-settings').click()")
+                slower_saved = False
+                for _ in range(60):
+                    try:
+                        if json.loads(config_path.read_text(encoding="utf-8")).get("gemini_model") == "gemini-3.6-flash":
+                            slower_saved = True
+                            break
+                    except Exception:
+                        pass
+                    time.sleep(0.15)
+                check("the chosen Gemini model reaches config.json", slower_saved)
+                check("the engine switches Gemini model without a restart",
+                      getattr(shell.dictator.cloud, "model", "") == "gemini-3.6-flash",
+                      str(getattr(shell.dictator.cloud, "model", "")))
+                check(
+                    "the About card follows the chosen Gemini model",
+                    evaluate(window, "document.getElementById('about-engine').textContent")
+                    == "Google Gemini (online) · gemini-3.6-flash",
+                    str(evaluate(window, "document.getElementById('about-engine').textContent")),
+                )
+
                 evaluate(window, "document.getElementById('clear-cloud-key').click()")
                 gemini_cleared = wait_js(
                     window,
@@ -499,6 +534,10 @@ def main() -> int:
                         pass
                     time.sleep(0.15)
                 check("local stays reachable after trying Gemini", back_local)
+                check(
+                    "the Gemini picker hides again for the local backend",
+                    evaluate(window, "document.getElementById('gemini-model-field').hidden === true") is True,
+                )
 
                 # --- hotkey capture ----------------------------------------
                 evaluate(window, "document.getElementById('set-hotkey').click()")

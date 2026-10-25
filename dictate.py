@@ -154,6 +154,7 @@ DEFAULT_CONFIG = {
     "learn_from_corrections": True,
     "crash_logging": True,
     "online_backend": "local",
+    "gemini_model": "gemini-3.5-flash-lite",
     "online_timeout_seconds": 30,
 }
 
@@ -1249,12 +1250,17 @@ class Dictator:
         """Adopt edited settings, reloading only what actually changed."""
         old = self.cfg
         self.cfg = cfg
-        if old.get("online_backend") != cfg.get("online_backend"):
+        if (
+            old.get("online_backend") != cfg.get("online_backend")
+            or old.get("gemini_model") != cfg.get("gemini_model")
+        ):
             self.reset_cloud_warning()
             # The online client follows the setting, so switching between
-            # Groq and Gemini does not need a restart.
+            # Groq, Gemini and another Gemini model does not need a restart.
             if self.cloud is not None and hasattr(self.cloud, "use"):
-                self.cloud.use(cfg.get("online_backend"))
+                self.cloud.use(
+                    cfg.get("online_backend"), gemini_model=cfg.get("gemini_model")
+                )
         if any(old.get(k) != cfg.get(k) for k in ("hotkey", "hold_to_talk")) and self.listening:
             self.stop_listening()
             self.start_listening()
@@ -1329,7 +1335,9 @@ def main() -> int:
             Path(args.config).resolve().parent / "credentials.json"
         )
         dictator.cloud = cloud_mod.CloudTranscriber(
-            credentials, backend=cfg.get("online_backend")
+            credentials,
+            backend=cfg.get("online_backend"),
+            gemini_model=cfg.get("gemini_model"),
         )
         dictator.on_notice = lambda message: print(f"  ! {message}")
 

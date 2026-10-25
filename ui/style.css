@@ -1018,6 +1018,8 @@ body[data-state="recording"] .transcript::after {
 .form-card .card-head { margin-bottom: 14px; }
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); min-width: 0; }
+/* A field's own display beats the browser's [hidden] rule, so say it here. */
+.field[hidden] { display: none; }
 .field.wide { margin-top: 16px; }
 .field > span {
   font-family: var(--font-mono);
@@ -1045,13 +1047,85 @@ body[data-state="recording"] .transcript::after {
 }
 .field input[readonly] { cursor: pointer; }
 .field select {
-  appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, #7d94b6 50%), linear-gradient(135deg, #7d94b6 50%, transparent 50%);
   background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
   background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
   padding-right: 30px;
 }
+
+/* The expanded list is drawn by the page instead of by Windows: the OS list
+ * arrives in system grey and breaks the panel. This is Chromium's customisable
+ * select, so a runtime that predates it simply keeps the native list. */
+.field select,
+.field select::picker(select) { appearance: base-select; }
+.field select::picker-icon { display: none; }
+.field select::picker(select) {
+  margin-top: 6px;
+  padding: 6px;
+  /* Drop below the field instead of flipping up over the field above: the
+   * browser flips when the list is taller than the space left underneath, so
+   * the cap stays under that. The list is in the top layer, so it may still
+   * spill out of the card without being clipped. */
+  position-area: block-end;
+  position-try-fallbacks: none;
+  min-width: anchor-size(width);
+  max-height: 300px;
+  border: 1px solid rgba(61, 220, 255, 0.28);
+  border-radius: 10px;
+  background-color: #08121f;
+  background-image: linear-gradient(180deg, rgba(61, 220, 255, 0.06), rgba(61, 220, 255, 0) 42%);
+  color-scheme: dark;
+  box-shadow: 0 26px 60px -28px rgba(0, 0, 0, 0.95), inset 0 1px rgba(61, 220, 255, 0.14), 0 0 34px -22px rgba(61, 220, 255, 1);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  animation: picker-in 0.14s ease-out;
+}
+@keyframes picker-in {
+  from { opacity: 0; transform: translateY(-4px) scaleY(0.985); }
+  to { opacity: 1; transform: none; }
+}
+.field select::picker(select) optgroup {
+  display: block;
+  margin: 0;
+  padding: 8px 10px 5px 12px;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #6fa8c4;
+  background: transparent;
+}
+.field select::picker(select) optgroup + optgroup {
+  margin-top: 4px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(61, 220, 255, 0.09);
+}
+/* Row states are matched on the option itself: the same rules written inside
+ * ::picker(select) apply to the row box but not to :hover or :checked. */
+.field select option {
+  padding: 7px 12px 7px 18px;
+  border-radius: 6px;
+  color: #cfe3f6;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: 0.3px;
+  background: transparent;
+}
+.field select option:hover,
+.field select option:focus {
+  background: rgba(61, 220, 255, 0.13);
+  color: #f2feff;
+  box-shadow: inset 2px 0 0 rgba(61, 220, 255, 0.85);
+}
+.field select option:checked {
+  color: var(--accent);
+  background: rgba(61, 220, 255, 0.07);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.field select option::checkmark { display: none; content: none; }
 .field small { color: var(--faint); font-size: 11px; line-height: 1.45; }
 .field small.warn { color: #f2b3a0; }
 
@@ -1414,6 +1488,8 @@ body[data-state="recording"] .transcript::after {
 
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  /* The pseudo-element is not matched by the universal selector. */
+  .field select::picker(select) { animation: none; }
 }
 
 @media (max-width: 980px) {

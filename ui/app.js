@@ -20,9 +20,9 @@
     listening: true,
     current: "idle",
     hotkeyLabel: "F9",
-    version: "2.0.10",
+    version: "2.0.11",
     models: [],
-    cloud: { backend: "local", has_key: false, keys: {}, providers: {}, model: "", free_limits: "", keys_url: "" },
+    cloud: { backend: "local", has_key: false, keys: {}, providers: {}, model: "", gemini_model: "", gemini_models: [], free_limits: "", keys_url: "" },
     configPath: "",
     modelDir: "",
     crashLogPath: "",
@@ -1007,6 +1007,12 @@
     renderAbout();
   }
 
+  // Used when the bridge predates the picker; the bridge's own list wins.
+  const GEMINI_FALLBACK = [
+    { value: "gemini-3.5-flash-lite", label: "3.5 Flash-Lite", note: "snelst, ongeveer 1 seconde per dictaat" },
+    { value: "gemini-3.6-flash", label: "3.6 Flash", note: "nauwkeuriger en betere leestekens, ongeveer 5 seconden" },
+  ];
+
   function providerMeta(provider) {
     const cloud = state.cloud || {};
     return ((cloud.providers || {})[provider]) || {};
@@ -1039,6 +1045,7 @@
     const hint = $("backend-hint");
 
     $("cloud-key-label").textContent = `${name} API-sleutel`;
+    renderGeminiModels(backend, meta);
     $("set-cloud-key").placeholder = meta.key_hint || "API-sleutel";
     $("cloud-limits").textContent = meta.free_limits || "Zie de limieten van je provider.";
     $("cloud-keys-url").textContent = String(meta.keys_url || "").replace(/^https?:\/\//, "");
@@ -1063,6 +1070,37 @@
       : "Geen sleutel opgeslagen.";
     status.classList.toggle("warn", online && !hasKey);
     $("clear-cloud-key").hidden = !hasKey;
+  }
+
+  function renderGeminiModels(backend, meta) {
+    const field = $("gemini-model-field");
+    const select = $("set-gemini-model");
+    field.hidden = backend !== "gemini";
+    if (field.hidden) return;
+
+    const list = (state.cloud && state.cloud.gemini_models && state.cloud.gemini_models.length)
+      ? state.cloud.gemini_models
+      : GEMINI_FALLBACK;
+    const signature = list.map((entry) => entry.value).join(",");
+    if (select.dataset.signature !== signature) {
+      fillSelect(select, list.map((entry) => ({ value: entry.value, label: entry.label })));
+      select.dataset.signature = signature;
+    }
+    const saved = String(
+      (state.settings && state.settings.gemini_model)
+      || (state.cloud && state.cloud.gemini_model)
+      || ""
+    );
+    // Only follow the stored value when it actually moved, so re-rendering on a
+    // change event cannot undo the choice the user just made in the list.
+    if (!select.value || select.dataset.saved !== saved) {
+      select.value = saved || list[0].value;
+      select.dataset.saved = saved;
+    }
+    const entry = list.find((item) => item.value === select.value) || {};
+    $("gemini-model-hint").textContent = entry.note
+      ? `${entry.note}. ${meta.model && meta.model === select.value ? "Nu actief." : ""}`.trim()
+      : "Snelheid tegen nauwkeurigheid.";
   }
 
   function selectedModel() { return $("set-model").value; }
@@ -1101,6 +1139,9 @@
       hotkey: $("set-hotkey").value,
       mode: $("set-mode").value,
       online_backend: $("set-backend").value,
+      gemini_model: $("set-gemini-model").value
+        || (state.settings && state.settings.gemini_model)
+        || "",
       hold_to_talk: $("set-hold").checked,
       overlay: $("set-overlay").checked,
       stream_preview: $("set-stream").checked,
@@ -1587,6 +1628,7 @@
   $("set-language").addEventListener("change", updateModelHints);
   $("set-preview-model").addEventListener("change", updateModelHints);
   $("set-backend").addEventListener("change", renderCloud);
+  $("set-gemini-model").addEventListener("change", renderCloud);
   $("save-cloud-key").addEventListener("click", saveCloudKey);
   $("clear-cloud-key").addEventListener("click", clearCloudKey);
   $("set-cloud-key").addEventListener("keydown", (event) => {
@@ -1759,7 +1801,7 @@
       cpu_threads: 4, beam_size: 1, mode: "paste", restore_clipboard: true,
       post_space: true, initial_prompt: "Freebuff, Codebuff, React, TypeScript, useEffect, WebSocket, API, CSS, backoff",
       max_seconds: 120, min_seconds: 0.35, beeps: true, online_backend: "local",
-      crash_logging: true,
+      gemini_model: "gemini-3.5-flash-lite", crash_logging: true,
     };
     const PROVIDER_META = {
       groq: {
@@ -1777,17 +1819,23 @@
     const cloudPayload = () => {
       const backend = settings.online_backend || "local";
       const meta = PROVIDER_META[backend] || {};
+      const picked = settings.gemini_model || GEMINI_FALLBACK[0].value;
       return {
         backend,
         provider: backend === "local" ? "groq" : backend,
         name: meta.name || "Lokaal (Whisper)",
-        model: meta.model || "",
+        model: backend === "gemini" ? picked : (meta.model || ""),
+        gemini_model: picked,
+        gemini_models: GEMINI_FALLBACK,
         free_limits: meta.free_limits || "",
         keys_url: meta.keys_url || "",
         key_hint: meta.key_hint || "",
         has_key: Boolean(cloudKeys[backend]),
         keys: { ...cloudKeys },
-        providers: PROVIDER_META,
+        providers: {
+          groq: { ...PROVIDER_META.groq },
+          gemini: { ...PROVIDER_META.gemini, model: picked },
+        },
       };
     };
     const demo = "Maak de dicteerknop duidelijker en toon de status van de microfoon.";
@@ -1805,7 +1853,7 @@
             { id: "Microfoon (USB-headset)", name: "Microfoon (USB-headset)", label: "Microfoon (USB-headset)", index: 3, default: false, api: "Windows WASAPI", rate: 48000 },
           ],
           cloud: cloudPayload(),
-          autostart: false, hotkey_label: "F9", version: "2.0.10 (demo)",
+          autostart: false, hotkey_label: "F9", version: "2.0.11 (demo)",
           crash_log_path: "crash.log (demo)",
           models: MODEL_ORDER.concat(["tiny", "base", "small", "medium"].map((name) => `${name}.en`)),
           model_dir: "C:\\Users\\gebruiker\\AppData\\Roaming\\Dicteer\\models",
@@ -1848,6 +1896,9 @@
         if (updates.online_backend !== "local" && !cloudKeys[updates.online_backend]) {
           const name = (PROVIDER_META[updates.online_backend] || {}).name || "online";
           return { ok: false, error: `Sla eerst je gratis ${name}-sleutel op voordat je online gaat.` };
+        }
+        if (updates.gemini_model && !GEMINI_FALLBACK.some((entry) => entry.value === updates.gemini_model)) {
+          return { ok: false, error: "Kies een Gemini-model uit de lijst." };
         }
         Object.assign(settings, updates);
         return { ok: true, settings: { ...settings }, cloud: cloudPayload() };
@@ -1956,7 +2007,7 @@
         await new Promise((resolve) => setTimeout(resolve, 350));
         return {
           ok: true,
-          current: "2.0.10",
+          current: "2.0.11",
           latest: "2.1.0",
           available: true,
           name: "Dicteer v2.1.0",

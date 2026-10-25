@@ -285,6 +285,13 @@ that needs no credit card, and both leave the live preview on your machine.
 
 Switching between local, Groq and Gemini applies immediately, without a restart.
 
+**Picking a Gemini model.** While Gemini is selected the card grows one more
+field, **Geminimodel**, with two measured options: `3.5 Flash-Lite` (about a
+second per dictation, the default) and `3.6 Flash` (about five seconds, but it
+keeps the commas and reads slightly better). Both were timed on the same 5.4 s
+clip with the vocabulary prompt. The choice is stored in `gemini_model` and
+applies without a restart.
+
 **What leaves the PC**
 
 Only the finished clip of one dictation, as a 16 kHz mono WAV. The live preview
@@ -383,6 +390,7 @@ optional: the final clip -> Groq (whisper-large-v3-turbo) -> text
 | `learn_from_corrections` | `true` | Learn spelling corrections from edits in Geschiedenis. Existing learning stays active when off. |
 | `crash_logging` | `true` | Write unhandled exceptions and fatal native crashes to `crash.log`. The report has a traceback and app/OS details, never dictation text, clipboard contents or an API key. |
 | `online_backend` | `"local"` | `local` keeps all audio on the PC. `groq` sends only the finished clip to Groq's free Whisper tier; `gemini` sends it to Google Gemini's free tier. |
+| `gemini_model` | `"gemini-3.5-flash-lite"` | Which Gemini model answers when `online_backend` is `gemini`: the fast `gemini-3.5-flash-lite` or the slower, tidier `gemini-3.6-flash`. |
 | `online_timeout_seconds` | `30` | How long to wait for the online provider before falling back to the local model. |
 
 Editing `config.json` by hand requires a restart; the window applies and writes
@@ -566,7 +574,7 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.10.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.11.exe`:
 the status is `Valid` once Windows trusts the chain. SmartScreen is a separate
 matter: the prompt fades only as the publisher's reputation grows, and that is
 as true for EV certificates as for OV ones.

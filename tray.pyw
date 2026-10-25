@@ -88,7 +88,9 @@ class Shell:
         # Windows DPAPI. A throwaway config therefore also isolates its key.
         self.credentials = cloud_mod.CredentialStore(data_dir / "credentials.json")
         self.dictator.cloud = cloud_mod.CloudTranscriber(
-            self.credentials, backend=cfg.get("online_backend")
+            self.credentials,
+            backend=cfg.get("online_backend"),
+            gemini_model=cfg.get("gemini_model"),
         )
         self.dictator.on_notice = self.on_notice
         # Corrections are learned from edits in the window; the hooks make the
@@ -154,7 +156,11 @@ class Shell:
 
     def cloud_status(self) -> dict:
         """What the window may know about the online keys: never their values."""
-        return cloud_mod.status(self.credentials, self.cfg.get("online_backend"))
+        return cloud_mod.status(
+            self.credentials,
+            self.cfg.get("online_backend"),
+            self.cfg.get("gemini_model"),
+        )
 
     def cloud_provider(self, provider: str | None = None) -> str:
         """The provider a key belongs to: the one asked for, else the chosen one."""
