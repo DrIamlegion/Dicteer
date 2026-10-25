@@ -15,12 +15,13 @@
     devices: [],
     stats: {},
     learning: { corrections: [], vocabulary: [], total: 0 },
+    spelling: { proposals: [], enabled: false },
     editingId: null,
     autostart: false,
     listening: true,
     current: "idle",
     hotkeyLabel: "F9",
-    version: "2.0.15",
+    version: "2.0.16",
     models: [],
     cloud: { backend: "local", has_key: false, keys: {}, providers: {}, model: "", gemini_model: "", gemini_models: [], free_limits: "", keys_url: "" },
     configPath: "",
@@ -123,6 +124,7 @@
     state.devices = data.devices || [];
     state.stats = data.stats || computeStats(state.history);
     state.learning = data.learning || { corrections: [], vocabulary: [], total: 0 };
+    state.spelling = data.spelling || state.spelling;
     state.cloud = data.cloud || state.cloud;
     state.autostart = Boolean(data.autostart);
     state.listening = Boolean(data.listening);
@@ -220,6 +222,10 @@
         renderCloud();
         renderBrand();
         renderAbout();
+        break;
+      case "spelling":
+        state.spelling = event.value || state.spelling;
+        renderLearning();
         break;
       case "storage_warnings":
         state.storageWarnings = Array.isArray(event.value)
@@ -831,6 +837,43 @@
       list.appendChild(node);
     });
 
+    const spelling = state.spelling || {};
+    const proposals = Array.isArray(spelling.proposals) ? spelling.proposals : [];
+    $("learn-spelling-block").hidden = proposals.length === 0;
+    $("learn-lookup-note").textContent = spelling.enabled === false
+      ? "Zet 'Namen opzoeken' aan en sla op om dit te gebruiken."
+      : "Zoekt onbekende namen uit je geschiedenis op; gebeurt ook vanzelf na elk dictaat.";
+    const suggestions = $("learn-spelling");
+    suggestions.innerHTML = "";
+    proposals.forEach((row) => {
+      const node = document.createElement("div");
+      node.className = "learn-row";
+      const pair = document.createElement("div");
+      pair.className = "learn-pair";
+      const heard = document.createElement("span");
+      heard.className = "learn-heard";
+      heard.textContent = row.heard;
+      const arrow = document.createElement("span");
+      arrow.className = "learn-arrow";
+      arrow.textContent = "→";
+      const fixed = document.createElement("span");
+      fixed.className = "learn-fixed";
+      fixed.textContent = row.word;
+      pair.append(heard, arrow, fixed);
+      const accept = document.createElement("button");
+      accept.className = "ghost-button mini";
+      accept.textContent = "Toevoegen";
+      accept.title = `"${row.word}" bij Eigen woorden zetten`;
+      accept.addEventListener("click", () => acceptSuggestion(row.heard));
+      const dismiss = document.createElement("button");
+      dismiss.className = "learn-forget";
+      dismiss.title = "Dit voorstel negeren";
+      dismiss.textContent = "×";
+      dismiss.addEventListener("click", () => dismissSuggestion(row.heard));
+      node.append(pair, accept, dismiss);
+      suggestions.appendChild(node);
+    });
+
     const chips = $("learn-vocabulary");
     chips.innerHTML = "";
     vocabulary.forEach((row) => {
@@ -867,6 +910,59 @@
       toast(`"${word}" toegevoegd`, "ok");
     } catch (err) {
       toast("Toevoegen mislukt", "error");
+    }
+  }
+
+  async function lookupSpelling() {
+    const button = $("learn-lookup");
+    button.disabled = true;
+    button.textContent = "Bezig…";
+    try {
+      const res = await api.lookup_spelling();
+      if (res && res.spelling) state.spelling = res.spelling;
+      renderLearning();
+      const total = (state.spelling.proposals || []).length;
+      toast(
+        state.spelling.enabled === false
+          ? "Zet eerst 'Namen opzoeken' aan en sla op."
+          : total ? `${total} voorstel${total === 1 ? "" : "len"}` : "Niets nieuws gevonden",
+        state.spelling.enabled === false ? "error" : "ok"
+      );
+    } catch (err) {
+      toast("Opzoeken mislukt", "error");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Namen opzoeken";
+    }
+  }
+
+  async function acceptSuggestion(heard) {
+    try {
+      const res = await api.accept_spelling(heard);
+      if (!res || res.ok === false) {
+        toast((res && res.error) || "Toevoegen mislukt", "error");
+        return;
+      }
+      state.learning = res.learning || state.learning;
+      state.spelling = res.spelling || state.spelling;
+      renderLearning();
+      toast("Toegevoegd aan Eigen woorden", "ok");
+    } catch (err) {
+      toast("Toevoegen mislukt", "error");
+    }
+  }
+
+  async function dismissSuggestion(heard) {
+    try {
+      const res = await api.dismiss_spelling(heard);
+      if (!res || res.ok === false) {
+        toast((res && res.error) || "Negeren mislukt", "error");
+        return;
+      }
+      state.spelling = res.spelling || state.spelling;
+      renderLearning();
+    } catch (err) {
+      toast("Negeren mislukt", "error");
     }
   }
 
@@ -911,6 +1007,7 @@
         return;
       }
       state.learning = res.learning || { corrections: [], vocabulary: [], total: 0 };
+      state.spelling = res.spelling || state.spelling;
       renderLearning();
       toast("Alle geleerde woorden vergeten", "ok");
     } catch (err) {
@@ -991,6 +1088,7 @@
     $("set-space").checked = s.post_space !== false;
     $("set-clipboard").checked = s.restore_clipboard !== false;
     $("set-learn").checked = s.learn_from_corrections !== false;
+    $("set-lookup").checked = s.lookup_spelling === true;
     $("set-autostart").checked = Boolean(state.autostart);
     $("set-crash-log").checked = s.crash_logging !== false;
 
@@ -1149,6 +1247,7 @@
       post_space: $("set-space").checked,
       restore_clipboard: $("set-clipboard").checked,
       learn_from_corrections: $("set-learn").checked,
+      lookup_spelling: $("set-lookup").checked,
       crash_logging: $("set-crash-log").checked,
     };
   }
@@ -1614,6 +1713,7 @@
   $("save-settings").addEventListener("click", saveSettings);
   $("learn-clear").addEventListener("click", clearLearning);
   $("learn-word-add").addEventListener("click", addVocabulary);
+  $("learn-lookup").addEventListener("click", lookupSpelling);
   $("learn-word").addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -1788,6 +1888,14 @@
     ];
     let history = demoItems.slice();
     let learning = { corrections: [], vocabulary: [] };
+    let spelling = {
+      enabled: true,
+      proposals: [
+        { heard: "Gitlab", word: "GitLab", count: 3 },
+        { heard: "gemini", word: "Gemini", count: 2 },
+      ],
+    };
+    const spellingPayload = () => ({ enabled: spelling.enabled, proposals: spelling.proposals.slice(), total: spelling.proposals.length });
     let stateName = "idle";
     let timers = [];
     const learningPayload = () => ({
@@ -1801,7 +1909,7 @@
       cpu_threads: 4, beam_size: 1, mode: "paste", restore_clipboard: true,
       post_space: true, initial_prompt: "Freebuff, Codebuff, React, TypeScript, useEffect, WebSocket, API, CSS, backoff",
       max_seconds: 120, min_seconds: 0.35, beeps: true, online_backend: "local",
-      gemini_model: "gemini-3.5-flash-lite", crash_logging: true,
+      gemini_model: "gemini-3.5-flash-lite", crash_logging: true, lookup_spelling: true,
     };
     const PROVIDER_META = {
       groq: {
@@ -1848,12 +1956,13 @@
           state: stateName, listening: true, settings, history,
           stats: computeStats(history),
           learning: learningPayload(),
+          spelling: spellingPayload(),
           devices: [
             { id: "Microfoon (Realtek Audio)", name: "Microfoon (Realtek Audio)", label: "Microfoon (Realtek Audio)", index: 1, default: true, api: "Windows WASAPI", rate: 44100 },
             { id: "Microfoon (USB-headset)", name: "Microfoon (USB-headset)", label: "Microfoon (USB-headset)", index: 3, default: false, api: "Windows WASAPI", rate: 48000 },
           ],
           cloud: cloudPayload(),
-          autostart: false, hotkey_label: "F9", version: "2.0.15 (demo)",
+          autostart: false, hotkey_label: "F9", version: "2.0.16 (demo)",
           crash_log_path: "crash.log (demo)",
           models: MODEL_ORDER.concat(["tiny", "base", "small", "medium"].map((name) => `${name}.en`)),
           model_dir: "C:\\Users\\gebruiker\\AppData\\Roaming\\Dicteer\\models",
@@ -1982,6 +2091,24 @@
         else learning.vocabulary.unshift({ word: clean, count: 1 });
         return { ok: true, learning: learningPayload() };
       },
+      async lookup_spelling() {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return { ok: true, started: true, spelling: spellingPayload() };
+      },
+      async accept_spelling(heard) {
+        const row = spelling.proposals.find((entry) => entry.heard === heard);
+        if (!row) return { ok: false, error: "Dit voorstel bestaat niet meer.", spelling: spellingPayload() };
+        spelling.proposals = spelling.proposals.filter((entry) => entry.heard !== heard);
+        if (!learning.vocabulary.some((entry) => entry.word === row.word)) {
+          learning.vocabulary.unshift({ word: row.word, count: 1 });
+        }
+        return { ok: true, learning: learningPayload(), spelling: spellingPayload() };
+      },
+      async dismiss_spelling(heard) {
+        const before = spelling.proposals.length;
+        spelling.proposals = spelling.proposals.filter((entry) => entry.heard !== heard);
+        return { ok: true, removed: before !== spelling.proposals.length, spelling: spellingPayload() };
+      },
       async forget_learning(kind, value) {
         if (kind === "correction") {
           learning.corrections = learning.corrections.filter((row) => row.heard !== value);
@@ -1994,7 +2121,8 @@
       },
       async clear_learning() {
         learning = { corrections: [], vocabulary: [] };
-        return { ok: true, learning: learningPayload() };
+        spelling = { enabled: spelling.enabled, proposals: [] };
+        return { ok: true, learning: learningPayload(), spelling: spellingPayload() };
       },
       async list_devices() {
         return { devices: (await this.boot()).devices };
@@ -2007,7 +2135,7 @@
         await new Promise((resolve) => setTimeout(resolve, 350));
         return {
           ok: true,
-          current: "2.0.15",
+          current: "2.0.16",
           latest: "2.1.0",
           available: true,
           name: "Dicteer v2.1.0",

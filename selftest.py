@@ -30,6 +30,7 @@ import cloud
 import crashlog
 import desktop
 import dictate as app
+import enrich
 import history as history_mod
 import learning as learning_mod
 import settings as settings_mod
@@ -898,6 +899,10 @@ def test_shell_ui() -> None:
         check("the shell puts a spoken version back together before delivery",
               shell.dictator._postprocess("Dicteer versie 2.01") == "Dicteer versie 2.0.1",
               shell.dictator._postprocess("Dicteer versie 2.01"))
+        shell.add_vocabulary("FreeBuff")
+        check("the whole pipeline spells a typed name",
+              shell.dictator._postprocess("ik gebruik freebuff dagelijks") == "ik gebruik FreeBuff dagelijks",
+              shell.dictator._postprocess("ik gebruik freebuff dagelijks"))
 
         shell.cfg["learn_from_corrections"] = False
         second = shell.history.add("De inluchtpagina is weer traag.", duration=2.0, model="small", language="nl", mode="paste")
@@ -993,6 +998,9 @@ def test_settings_validation() -> None:
     check("correction learning defaults to on", merged["learn_from_corrections"] is True)
     check("correction learning can be switched off",
           settings_mod.apply_updates(base, {"learn_from_corrections": False})["learn_from_corrections"] is False)
+    check("name lookup is off by default", merged["lookup_spelling"] is False)
+    check("name lookup can be switched on",
+          settings_mod.apply_updates(base, {"lookup_spelling": True})["lookup_spelling"] is True)
     check("crash logging defaults to on", merged["crash_logging"] is True)
     check("crash logging can be switched off",
           settings_mod.apply_updates(base, {"crash_logging": False})["crash_logging"] is False)
@@ -1280,17 +1288,166 @@ def test_learning() -> None:
         check("a refused word is never stored",
               all(row["word"] not in ("twee woorden", "") for row in store.vocabulary()))
 
+        # The vocabulary is the norm, not a request: a name typed once is put
+        # back on every transcript, whichever backend produced it.
+        store.add_word("FreeBuff")
+        check("a typed capital is enforced mid-sentence",
+              store.apply_text("Ik open freebuff en begin.") == "Ik open FreeBuff en begin.",
+              store.apply_text("Ik open freebuff en begin."))
+        check("a shouted name comes back in its own casing",
+              store.apply_text("FREEBUFF staat open") == "FreeBuff staat open",
+              store.apply_text("FREEBUFF staat open"))
+        check("a longer word is never rewritten",
+              store.apply_text("freebuffers staan open") == "freebuffers staan open",
+              store.apply_text("freebuffers staan open"))
+        check("a lowercase word stays a hint and keeps the model's capitals",
+              store.apply_text("Features werken") == "Features werken",
+              store.apply_text("Features werken"))
+        check("a known name is spelled without being taught",
+              store.apply_text("ik schrijf het in typescript en github") == "ik schrijf het in TypeScript en GitHub",
+              store.apply_text("ik schrijf het in typescript en github"))
+        check("a repository path is left alone",
+              store.apply_text("de map github.com/dicteer blijft") == "de map github.com/dicteer blijft",
+              store.apply_text("de map github.com/dicteer blijft"))
+        check("an e-mail address is left alone",
+              store.apply_text("mail info@dicteer.nl") == "mail info@dicteer.nl",
+              store.apply_text("mail info@dicteer.nl"))
+
         reloaded = learning_mod.LearningStore(path)
         check("learning survives a restart",
               reloaded.apply_text("inluchtpagina") == "inlogpagina" and "WebSocket" in reloaded.prompt_extra())
         check("hand-typed words survive a restart", "features" in reloaded.prompt_extra(), reloaded.prompt_extra())
+        check("an enforced spelling survives a restart",
+              reloaded.apply_text("weer freebuff") == "weer FreeBuff", reloaded.apply_text("weer freebuff"))
         reloaded.forget_correction("inluchtpagina")
         check("forgetting a correction stops it applying", reloaded.apply_text("inluchtpagina") == "inluchtpagina")
         reloaded.forget_word("WebSocket")
         check("forgetting a word removes it from the prompt", "WebSocket" not in reloaded.prompt_extra())
+        reloaded.forget_word("FreeBuff")
+        check("forgetting a typed word stops enforcing its capital",
+              reloaded.apply_text("weer freebuff") == "weer freebuff",
+              reloaded.apply_text("weer freebuff"))
         reloaded.clear()
         check("clearing forgets everything", reloaded.payload()["total"] == 0, str(reloaded.payload()))
+        check("known names are spelled even after forgetting everything",
+              reloaded.apply_text("openen in typescript") == "openen in TypeScript",
+              reloaded.apply_text("openen in typescript"))
         check("an empty store still applies text unchanged", reloaded.apply_text("niets te doen") == "niets te doen")
+
+
+def test_spelling_lookup() -> None:
+    """Names looked up in the background: proposed, never applied by itself."""
+    import tempfile
+
+    labels = {
+        "gemini": "Gemini",
+        "github": "GitHub",
+        "dicteerderij": "Dicteerderij",
+        "freebuff": "Freeburg",  # letters changed: must never be proposed
+        "inluchtpagina": "Inlogpagina",  # a fuzzy match that changes letters
+        "claude": "Claude",
+        "kunnen": "Kunnen",  # a surname: ordinary words must never get here
+        "backoff": None,
+    }
+    asked: list[tuple[str, str]] = []
+
+    def fake_lookup(word, language):
+        asked.append((word, language))
+        return labels.get(word.lower())
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "spelling.json"
+        store = enrich.SpellingStore(path, lookup=fake_lookup)
+        texts = [
+            "Ik open github, gemini en freebuff.",
+            "github staat open, daarna Gemini en freebuff.",
+            "nog eens github met backoff.",
+            "de inluchtpagina is traag.",
+            "weer de Inluchtpagina.",
+            "Vandaag begin ik met Github.",
+            "dat kunnen we doen, dat kunnen we laten.",
+        ]
+        result = store.harvest(texts, {"freebuff"}, language="nl", limit=8)
+        proposals = {row["heard"]: row["word"] for row in store.proposals()}
+        asked_words = {word.lower() for word, _ in asked}
+        check("every repeated unknown word is looked up",
+              {"github", "gemini", "inluchtpagina"} <= asked_words, str(asked_words))
+        check("a known or once-seen word is never asked about",
+              not ({"freebuff", "vandaag", "backoff"} & asked_words), str(asked_words))
+        check("an ordinary lowercase word is never asked about",
+              "kunnen" not in asked_words, str(asked_words))
+        check("the source's capital becomes a proposal",
+              proposals.get("github") == "GitHub" and proposals.get("gemini") == "Gemini",
+              str(proposals))
+        check("a suggestion that changes letters is dropped",
+              "inluchtpagina" not in proposals and "freebuff" not in proposals,
+              str(proposals))
+        check("a word seen once is not worth a request",
+              all(word.lower() != "backoff" for word, _ in asked), str(asked))
+        check("the dictation language is used",
+              bool(asked) and all(language == "nl" for _, language in asked), str(asked))
+        check("a proposal waits for the user instead of being applied",
+              "github" not in {row["word"] for row in store.proposals()},
+              str(proposals))
+
+        before = len(asked)
+        store.harvest(texts, {"freebuff"}, language="nl")
+        check("a word is asked about once, ever", len(asked) == before, f"{len(asked)} vs {before}")
+
+        reloaded = enrich.SpellingStore(path, lookup=fake_lookup)
+        check("proposals survive a restart",
+              {row["heard"] for row in reloaded.proposals()} == {"github", "gemini"},
+              str(reloaded.proposals()))
+        accepted_word = reloaded.accept("github")
+        check("an accepted suggestion returns its spelling", accepted_word == "GitHub", str(accepted_word))
+        check("an accepted suggestion leaves the list",
+              all(row["heard"] != "github" for row in reloaded.proposals()),
+              str(reloaded.proposals()))
+        check("a dismissed suggestion leaves the list",
+              reloaded.dismiss("gemini") is True
+              and all(row["heard"] != "gemini" for row in reloaded.proposals()))
+        check("an unknown suggestion is refused", reloaded.accept("bestaatniet") is None)
+        reloaded.clear()
+        check("clearing forgets proposals and lookups",
+              reloaded.payload()["total"] == 0 and reloaded.looked_up() == 0,
+              str(reloaded.payload()))
+
+        # The shell decides: off by default, and only then does anything run.
+        tray = load_tray()
+        cfg = dict(app.DEFAULT_CONFIG, overlay=False, beeps=False)
+        shell = tray.Shell(cfg, Path(tmp) / "config.json")
+        check("name lookup is off by default",
+              shell.spelling_payload()["enabled"] is False,
+              str(shell.spelling_payload()))
+        check("a disabled lookup starts no pass",
+              shell.refresh_spelling(throttle=0) is False)
+
+        shell.spelling.lookup = fake_lookup
+        shell.cfg = dict(shell.cfg, lookup_spelling=True)
+        # The model knows both are names but drops the capital on one run.
+        shell.history.add("Ik open claude en gemini.", duration=2.0, model="small", language="nl", mode="paste")
+        shell.history.add("nog eens Claude en Gemini erbij.", duration=2.0, model="small", language="nl", mode="paste")
+        check("an enabled lookup starts a pass", shell.refresh_spelling(throttle=0) is True)
+        if shell._spelling_thread is not None:
+            shell._spelling_thread.join(5.0)
+        payload = shell.spelling_payload()
+        check("the window is offered the suggestions",
+              {row["heard"] for row in payload["proposals"]} == {"claude", "gemini"},
+              str(payload))
+
+        accepted = shell.accept_spelling("gemini")
+        check("approving a suggestion adds it to Eigen woorden",
+              accepted["ok"] and any(row["word"] == "Gemini" for row in accepted["learning"]["vocabulary"]),
+              str(accepted.get("learning")))
+        check("the approved spelling is enforced from then on",
+              shell.learning.apply_text("ik open gemini") == "ik open Gemini",
+              shell.learning.apply_text("ik open gemini"))
+        check("an approved suggestion leaves the proposals",
+              all(row["heard"] != "gemini" for row in shell.spelling_payload()["proposals"]),
+              str(shell.spelling_payload()))
+        refused = shell.accept_spelling("gemini")
+        check("approving twice reports it is gone",
+              refused["ok"] is False and bool(refused.get("error")), str(refused))
 
 
 def test_version_numbers() -> None:
@@ -2254,6 +2411,7 @@ def main(argv: list[str] | None = None) -> int:
     test_crash_notice()
     test_window_placement()
     test_learning()
+    test_spelling_lookup()
     test_version_numbers()
     test_licence_notices()
     test_cloud_credentials()

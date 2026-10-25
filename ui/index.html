@@ -386,11 +386,17 @@
         <p class="learn-intro">Bewerk een dictaat in <strong>Geschiedenis</strong>. De app onthoudt je spelling en gebruikt die bij de volgende opnames.</p>
         <div class="toggle-list">
           <label class="toggle"><input type="checkbox" id="set-learn"><span class="switch"></span><span>Leren van correcties<small>Alleen woorden die je zelf verbetert. Bestaande correcties blijven actief tot je ze hier vergeet.</small></span></label>
+          <label class="toggle"><input type="checkbox" id="set-lookup"><span class="switch"></span><span>Namen opzoeken<small>Woorden die vaak terugkomen worden na het dicteren bij Wikidata opgevraagd. Elk voorstel keur je zelf goed; er wordt niets automatisch overgenomen.</small></span></label>
         </div>
         <div class="learn-body">
           <div class="learn-block" id="learn-corrections-block" hidden>
             <h3>Woordcorrecties</h3>
             <div class="learn-list" id="learn-corrections"></div>
+          </div>
+          <div class="learn-block" id="learn-spelling-block" hidden>
+            <h3>Voorstellen</h3>
+            <div class="learn-list" id="learn-spelling"></div>
+            <small class="learn-hint">Opgevraagd bij Wikidata. <strong>Toevoegen</strong> zet de spelling bij Eigen woorden, en vanaf dan wordt hij bij elk dictaat afgedwongen.</small>
           </div>
           <div class="learn-block" id="learn-vocabulary-block">
             <h3>Eigen woorden</h3>
@@ -399,7 +405,11 @@
               <input type="text" id="learn-word" placeholder="bijv. features" autocomplete="off" spellcheck="false" maxlength="40" aria-label="Eigen woord toevoegen">
               <button class="ghost-button mini" id="learn-word-add" type="button">Toevoegen</button>
             </div>
-            <small class="learn-hint">Eén woord, zonder spaties. Het gaat mee in de prompt van het model, zodat het de volgende keer zo geschreven wordt.</small>
+            <small class="learn-hint">Eén woord, zonder spaties. Woorden met een hoofdletter (<em>FreeBuff</em>, <em>useEffect</em>) worden bij elk dictaat zo geschreven, wat het model ook hoort; een gewoon woord gaat alleen mee in de prompt.</small>
+            <div class="key-field learn-add">
+              <button class="ghost-button mini" id="learn-lookup" type="button">Namen opzoeken</button>
+            </div>
+            <small class="learn-hint" id="learn-lookup-note">Zoekt onbekende namen uit je geschiedenis op; gebeurt ook vanzelf na elk dictaat.</small>
           </div>
           <div class="learn-empty" id="learn-empty">Nog niets geleerd. Bewerk een dictaat in Geschiedenis om te beginnen.</div>
           <button class="ghost-button danger mini" id="learn-clear" hidden>Alles vergeten</button>
@@ -441,7 +451,7 @@
           <svg viewBox="0 0 24 24" width="30" height="30"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 1 0-7 0v6A3.5 3.5 0 0 0 12 15Z" fill="currentColor"/><path d="M5.8 11.2a6.2 6.2 0 0 0 12.4 0M12 17.4V21m-3.4 0h6.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         </div>
         <div>
-          <div class="about-title">Dicteer <span class="about-version" id="about-version">2.0.15</span></div>
+          <div class="about-title">Dicteer <span class="about-version" id="about-version">2.0.16</span></div>
           <p class="muted small" id="about-pitch">Een kleine, snelle dicteerhulp. Lokaal met Whisper op je eigen computer; online met Groq of Gemini als je dat zelf kiest.</p>
         </div>
       </section>
@@ -470,7 +480,7 @@
 
       <section class="card form-card">
         <div class="card-head"><h2>Updates</h2></div>
-        <p class="muted small" id="update-status">Je hebt versie <strong id="update-current">2.0.15</strong>. Er wordt niets verstuurd tenzij je hier op controleert.</p>
+        <p class="muted small" id="update-status">Je hebt versie <strong id="update-current">2.0.16</strong>. Er wordt niets verstuurd tenzij je hier op controleert.</p>
         <div class="row-actions">
           <button class="ghost-button" id="check-updates">Controleer op updates</button>
           <button class="primary-button" id="download-update" hidden>Downloaden</button>

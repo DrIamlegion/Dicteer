@@ -16,6 +16,7 @@
   "initial_prompt": "Dicteer, Freebuff, Codebuff, React, TypeScript, useEffect, WebSocket, API, CSS, backoff",
   "beeps": true,
   "learn_from_corrections": true,
+  "lookup_spelling": false,
   "online_backend": "local",
   "gemini_model": "gemini-3.5-flash-lite"
 }

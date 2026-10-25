@@ -16,6 +16,13 @@ Only single-word replacements are learned as corrections: a rewrite such as
 "web socket" -> "WebSocket" would otherwise teach half a phrase to the wrong
 word. Multi-word edits can still contribute vocabulary.
 
+Asking a model to spell a name is a request, not a guarantee - the same
+``FreeBuff`` comes back as ``Freebuff`` on one run and correctly on the next.
+So the vocabulary is also the *norm*: every transcript is put back to the
+spelling that was typed for it, and to the spelling of the names in
+``KNOWN_SPELLINGS``. That is deterministic, offline and needs no correction
+per dictation - the user teaches a name once, by typing it.
+
 Everything lives in ``learning.json`` next to ``config.json`` and can be
 forgotten from the Leren card in Settings.
 """
@@ -23,6 +30,7 @@ forgotten from the Leren card in Settings.
 from __future__ import annotations
 
 import difflib
+import functools
 import json
 import logging
 import os
@@ -54,8 +62,114 @@ STOPWORDS = {
 }
 
 
+# Names the app can spell without being taught: a model flattens these
+# regularly (``typescript``, ``github``, ``freebuff``) and a prompt hint only
+# nudges it. Every entry is either not a word at all in its lowercase form or a
+# different word, so writing it correctly cannot damage ordinary prose - which
+# is why plain words such as ``react`` or ``whisper`` are deliberately absent.
+KNOWN_SPELLINGS = (
+    "Dicteer",
+    "TypeScript",
+    "JavaScript",
+    "WebSocket",
+    "WebRTC",
+    "WebAssembly",
+    "useEffect",
+    "useState",
+    "useRef",
+    "useMemo",
+    "useCallback",
+    "useContext",
+    "useReducer",
+    "GitHub",
+    "GitLab",
+    "PyInstaller",
+    "PowerShell",
+    "PostgreSQL",
+    "SQLite",
+    "MongoDB",
+    "GraphQL",
+    "OAuth",
+    "Kubernetes",
+    "PyTorch",
+    "TensorFlow",
+    "OpenAI",
+    "ChatGPT",
+    "WordPress",
+    "YouTube",
+    "iPhone",
+    "iPad",
+    "macOS",
+    "iOS",
+    "jQuery",
+    "FastAPI",
+)
+
+# One word, no spaces, no wrapping punctuation: the shapes a spelling may have.
+_SPELLING_KEY = re.compile(r"[^\W\d_][\w.'’-]*", re.UNICODE)
+# A spelling that sits in a URL, a path or an e-mail address is part of an
+# identifier, not of prose, and is left alone.
+_IDENTIFIER_BEFORE = "@/\\."
+
+
 def _key(word: str) -> str:
     return re.sub(r"^[^\w]+|[^\w]+$", "", str(word or "")).lower()
+
+
+def _spelling_key(word: str) -> str:
+    """The lowercase form a known spelling is matched by, or ``""``."""
+    clean = str(word or "").strip().strip(".,;:!?\"'()[]{}")
+    if not _SPELLING_KEY.fullmatch(clean):
+        return ""
+    return clean.lower()
+
+
+def _spellable(word: str) -> bool:
+    """Whether this spelling may overrule a transcript.
+
+    Only spellings that carry a capital. Rewriting a plain lowercase word would
+    take the capital off the first word of a sentence, so ``features`` stays a
+    hint for the models while ``FreeBuff`` and ``API`` become the norm.
+    """
+    return bool(_spelling_key(word)) and any(ch.isupper() for ch in str(word))
+
+
+def spelling_table(words=()) -> dict[str, str]:
+    """Known spellings by their lowercase form; the user's own typing wins."""
+    table = {_spelling_key(word): word for word in KNOWN_SPELLINGS if _spelling_key(word)}
+    for word in words:
+        key = _spelling_key(word)
+        if key and _spellable(word):
+            table[key] = str(word).strip().strip(".,;:!?\"'()[]{}")
+    return table
+
+
+@functools.lru_cache(maxsize=8)
+def _spelling_pattern(keys: tuple[str, ...]) -> re.Pattern:
+    return re.compile(
+        r"(?<!\w)(" + "|".join(re.escape(key) for key in keys) + r")(?!\w)",
+        re.IGNORECASE,
+    )
+
+
+def enforce_spelling(text: str, table: dict[str, str]) -> str:
+    """Write known names the way they are known to be spelled."""
+    if not text or not table:
+        return text
+    pattern = _spelling_pattern(tuple(sorted(table, key=len, reverse=True)))
+
+    def replace(match: re.Match) -> str:
+        canonical = table[match.group(0).lower()]
+        if match.group(0) == canonical:
+            return canonical
+        start, end = match.span()
+        if start and text[start - 1] in _IDENTIFIER_BEFORE:
+            return match.group(0)
+        if text.startswith(".", end) and text[end + 1:end + 2].isalnum():
+            return match.group(0)
+        return canonical
+
+    return pattern.sub(replace, text)
 
 
 def tokens(text: str) -> list[str]:
@@ -282,11 +396,18 @@ class LearningStore:
         return out
 
     def apply_text(self, text: str) -> str:
-        """Apply learned whole-word corrections to a transcript."""
+        """Spell known names the right way, then apply learned corrections.
+
+        The order matters: the spelling table is the norm for names and is
+        applied first, so an explicit correction - what the user fixed after
+        hearing the wrong word - still has the last word over it.
+        """
+        if not text:
+            return text
         with self._lock:
             pairs = [(heard, entry["fixed"]) for heard, entry in self._corrections.items()]
-        if not pairs or not text:
-            return text
+            table = spelling_table(self._vocabulary)
+        text = enforce_spelling(text, table)
         # Longest first, so "websocket" wins over "socket" if both were learned.
         for heard, fixed in sorted(pairs, key=lambda pair: -len(pair[0])):
             pattern = re.compile(rf"(?<!\w){re.escape(heard)}(?!\w)", re.IGNORECASE)
@@ -407,7 +528,9 @@ class LearningStore:
 
         Edits in the history are the usual way in, but a word the model keeps
         mishearing is easier to add up front: typing ``features`` here puts it
-        in the next ``initial_prompt`` without waiting for a correction.
+        in the next ``initial_prompt`` without waiting for a correction. A word
+        with a capital in it goes further: ``FreeBuff`` is also enforced on
+        every transcript, so its spelling no longer depends on the model.
         """
         clean = str(word or "").strip().strip(".,;:!?")
         if not clean or len(clean) > 40 or any(char.isspace() for char in clean):

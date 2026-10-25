@@ -133,8 +133,9 @@ learns (see below). Clear asks for a second click first.
 * the hotkey field is a recorder: click it and press the combination, no need to
   type `<ctrl>+<alt>+d` by hand. Escape cancels;
 * hold-to-talk, overlay, live preview, beeps, trailing space, clipboard restore;
-* a **Leren** card with the switch for correction learning, the words the app
-  learned, a field to add a word yourself, and a forget button per item;
+* a **Leren** card with the switch for correction learning, the switch for
+  looking names up, the words the app learned, a field to add a word yourself,
+  the suggestions it found, and a forget button per item;
 * an **Online model** card: local, Groq's free tier or Google Gemini, with a
   field for that provider's encrypted API key, its model name and its limits;
 * **Start met Windows**, **Crashlog opslaan**, log/crashlog/folder buttons, and
@@ -241,8 +242,9 @@ wrote it. Everything is local in `learning.json` next to `config.json`.
 
 In **Instellingen → Leren** you can see exactly what was learned, remove a
 single correction or word, or forget everything. Turning off **Leren van
-correcties** stops new learning; existing corrections stay active until you
-remove them. Nothing is learned from ordinary dictation you did not edit.
+correcties** stops new learning; existing corrections and the spelling of your
+own words stay active until you remove them. Nothing is learned from ordinary
+dictation you did not edit.
 
 A word you already know the model gets wrong does not have to wait for a
 correction. Type it into **Eigen woorden** and press Enter: one word, no spaces
@@ -250,6 +252,82 @@ correction. Type it into **Eigen woorden** and press Enter: one word, no spaces
 immediately, without a restart, and survives an update in `learning.json`.
 Decimal spelling of a word the model hears differently (`features` came out as
 `vuurtjes`) is exactly what this field is for.
+
+### De spelling die je typte is de norm
+
+Een prompt is een verzoek, geen garantie. Hetzelfde `FreeBuff` komt de ene keer
+terug als `Freebuff` en de andere keer goed, en dan zou je elke keer opnieuw in
+Geschiedenis moeten corrigeren. Daarom is de lijst met eigen woorden ook de
+*maatstaf*: elk transcript wordt achteraf teruggezet op de spelling die jij
+typte, ongeacht of dat van Whisper of van Gemini kwam.
+
+```
+gehoord:  Dicteer in freebuff werkzaam aan deze test.
+bewaard:  Dicteer in FreeBuff werkzaam aan deze test.
+```
+
+Alleen woorden met een hoofdletter worden afgedwongen, en alleen op hele
+woorden:
+
+* `FreeBuff` en `useEffect` (hoofdletter binnenin) en `API` of `CSS` (helemaal
+  kapitaal) worden overal rechtgezet, ook midden in een zin;
+* `Codebuff`, `React` of `Dicteer` (alleen de eerste letter) ook, want zo heb je
+  ze zelf ingevoerd;
+* een gewoon woord zoals `features` blijft een hint voor het model - het
+  terugzetten daarvan zou de hoofdletter van een zinsbegin slopen;
+* langere woorden, URL's, paden en e-mailadressen blijven ongemoeid:
+  `freebuffers`, `github.com/dicteer` en `info@dicteer.nl` worden niet
+  aangeraakt.
+
+Een klein aantal namen kent de app al zonder dat je ze invoert: `TypeScript`,
+`JavaScript`, `WebSocket`, `useEffect`, `GitHub`, `PyInstaller`, `PowerShell`,
+`PostgreSQL`, `SQLite`, `MongoDB`, `GraphQL`, `OAuth`, `iPhone`, `macOS`,
+`ChatGPT` en nog een handvol. Die lijst staat in `learning.py` en wordt met de
+app meegeleverd, dus **Alles vergeten** wist hem niet - het is geen leerstof
+maar een vaste correctie, net als het terugzetten van versienummers. Bewust
+staan woorden die ook gewoon bestaan (`react`, `whisper`, `docker`) er niet in:
+liever niets doen dan een gewoon woord met een hoofdletter schrijven.
+
+Wat het niet doet: de spelling van je eigen naam raden. Wikipedia kent
+`TypeScript` wel, maar `FreeBuff` en `Dicteer` niet, en een repo-zoekopdracht
+levert `CodebuffAI/freebuff` op - kleine letter. Voor je eigen namen is de
+spelling die jij typte de enige bron die het zeker weet. Voor de namen die je
+niet zelf hebt ingevoerd, kan de app wel iets opzoeken: zie hieronder.
+
+### Namen opzoeken (uit)
+
+Staat **Namen opzoeken** in de Leren-kaart aan, dan kijkt de app na elk dictaat
+- in een achtergrondthread, nooit tussen praten en plakken - welke woorden
+vaker terugkomen en nog niet bekend zijn, en vraagt die één keer op bij
+[Wikidata](https://www.wikidata.org). Wat eruit komt staat onder
+**Voorstellen**:
+
+```
+gitlab  →  GitLab                       [Toevoegen] [×]
+```
+
+**Toevoegen** zet de spelling bij Eigen woorden, en vanaf dat moment dwingt de
+app hem bij elk dictaat af. **×** gooit het voorstel weg. Er wordt niets
+automatisch overgenomen, want een bron kan ernaast zitten: vraag je Wikidata
+naar `backoff`, dan komt er `Backoff` uit - een achternaam, niet de
+terugwachttijd van je WebSocket.
+
+Drie remmen houden dat in de hand:
+
+* **alleen hoofdletters.** Een voorstel wordt weggegooid tenzij de bron exact
+dezelfde letters gebruikt. `gemini` → `Gemini` mag, `inluchtpagina` →
+`Inlogpagina` niet - een bron die letters verandert is onbetrouwbaar over namen;
+* **één keer per woord.** Elke opzoeking wordt in `spelling.json` onthouden,
+dus hetzelfde woord wordt nooit twee keer gevraagd en de lijst blijft klein;
+* **alleen wat vaker langskomt.** Een woord moet minstens twee keer in je
+geschiedenis staan, midden in een zin (een hoofdletter aan het begin zegt
+niets), en nog niet in Eigen woorden of de vaste lijst staan.
+
+Dit is het enige onderdeel dat iets van je machine af stuurt: het woord zelf,
+naar Wikidata, en alleen als je de schakelaar aanzet. Het staat standaard uit.
+Zet je hem aan, dan begint de eerste ronde meteen; met **Namen opzoeken** onder
+Eigen woorden vraag je tussendoor om een nieuwe ronde. **Alles vergeten** wist
+de voorstellen en de onthouden opzoekingen.
 
 ### Versienummers
 
@@ -394,6 +472,7 @@ optional: the final clip -> Groq (whisper-large-v3-turbo) -> text
 | `min_seconds` | `0.35` | Shorter clips are discarded as accidental taps. |
 | `beeps` | `true` | Audio feedback (useful when the window is hidden). |
 | `learn_from_corrections` | `true` | Learn spelling corrections from edits in Geschiedenis. Existing learning stays active when off. |
+| `lookup_spelling` | `false` | Look unknown, repeated names up at Wikidata after a dictation and offer the spelling in the Leren card. Off by default; it is the only part that sends a word off the machine. |
 | `crash_logging` | `true` | Write unhandled exceptions and fatal native crashes to `crash.log`. The report has a traceback and app/OS details, never dictation text, clipboard contents or an API key. |
 | `online_backend` | `"local"` | `local` keeps all audio on the PC. `groq` sends only the finished clip to Groq's free Whisper tier; `gemini` sends it to Google Gemini's free tier. |
 | `gemini_model` | `"gemini-3.5-flash-lite"` | Which Gemini model answers when `online_backend` is `gemini`: the fast `gemini-3.5-flash-lite` or the slower, tidier `gemini-3.6-flash`. |
@@ -401,7 +480,8 @@ optional: the final clip -> Groq (whisper-large-v3-turbo) -> text
 
 Editing `config.json` by hand requires a restart; the window applies and writes
 it for you. `ui-state.json` (window size/position), `learning.json` (learned
-corrections), `credentials.json` (the encrypted API keys, if you use any),
+corrections), `spelling.json` (name suggestions and the words already looked
+up), `credentials.json` (the encrypted API keys, if you use any),
 `crash.log` (when crash logging is on) and the temporary `crash-run.json` run
 marker are created next to it; delete the first to re-centre the window,the second to forget everything learned, the third to remove the online key, and
 the fourth to clear the crash history. A `history.json` or `learning.json` that
@@ -583,7 +663,7 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.15.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.16.exe`:
 the status is `Valid` once Windows trusts the chain. SmartScreen is a separate
 matter: the prompt fades only as the publisher's reputation grows, and that is
 as true for EV certificates as for OV ones.

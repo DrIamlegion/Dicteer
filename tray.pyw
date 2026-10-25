@@ -18,6 +18,7 @@ import logging
 import os
 import sys
 import threading
+import time
 from pathlib import Path
 
 import autostart
@@ -25,6 +26,7 @@ import cloud as cloud_mod
 import crashlog
 import desktop
 import dictate as app
+import enrich
 import history as history_mod
 import learning as learning_mod
 import settings as settings_mod
@@ -100,6 +102,14 @@ class Shell:
         )
         self.dictator.postprocess = self.learning.apply_text
         self.dictator.extra_prompt = self.learning.prompt_extra
+        # Names the app looks up on its own. Off by default - it is the only
+        # part that sends anything off the machine - and always in a background
+        # thread, never on the path between speaking and pasting.
+        self.spelling = enrich.SpellingStore(
+            data_dir / "spelling.json", on_error=self._storage_error
+        )
+        self._spelling_thread: threading.Thread | None = None
+        self._spelling_last = 0.0
         for message in (self.history.read_error, self.learning.read_error):
             if message:
                 self._storage_error(message)
@@ -135,6 +145,7 @@ class Shell:
             "history": self.history.items(),
             "stats": self.stats(),
             "learning": self.learning.payload(),
+            "spelling": self.spelling_payload(),
             "storage_warnings": list(self._storage_warnings),
             "devices": self.devices(),
             "cloud": self.cloud_status(),
@@ -258,8 +269,84 @@ class Shell:
 
     def clear_learning(self) -> dict:
         self.learning.clear()
+        self.spelling.clear()
         log.info("learned corrections cleared")
-        return {"ok": True, "learning": self.learning.payload()}
+        return {"ok": True, "learning": self.learning.payload(), "spelling": self.spelling_payload()}
+
+    # -- spelling suggestions ---------------------------------------------
+    def spelling_payload(self) -> dict:
+        payload = self.spelling.payload()
+        payload["enabled"] = bool(self.cfg.get("lookup_spelling"))
+        return payload
+
+    def _lookup_language(self) -> str:
+        language = str(self.cfg.get("language") or "nl").strip().lower()
+        return language if language in ("nl", "en") else "nl"
+
+    def _known_words(self) -> set[str]:
+        """Everything the app already spells itself: never worth a request."""
+        words = [row["word"] for row in self.learning.vocabulary()]
+        known = set(learning_mod.spelling_table(words))
+        known.update(str(word).strip().lower() for word in words)
+        known.update(str(row["heard"]).strip().lower() for row in self.learning.corrections())
+        known.update(
+            part.strip().lower()
+            for part in str(self.cfg.get("initial_prompt") or "").split(",")
+            if part.strip()
+        )
+        return known
+
+    def refresh_spelling(self, throttle: float = 120.0) -> bool:
+        """Look for new names in the background. Returns whether a pass started."""
+        if not self.cfg.get("lookup_spelling"):
+            return False
+        thread = self._spelling_thread
+        if thread is not None and thread.is_alive():
+            return False
+        now = time.time()
+        if throttle and now - self._spelling_last < throttle:
+            return False
+        self._spelling_last = now
+
+        def run() -> None:
+            try:
+                result = self.spelling.harvest(
+                    [str(item.get("text") or "") for item in self.history.items()],
+                    self._known_words(),
+                    language=self._lookup_language(),
+                )
+            except Exception as exc:  # a lookup may never disturb dictation
+                log.debug("spelling lookup failed: %s", exc)
+                return
+            if result["added"]:
+                log.info("spelling suggestions: %d new", result["added"])
+                if self.ui is not None:
+                    self.ui.emit_spelling(self.spelling_payload())
+
+        self._spelling_thread = threading.Thread(target=run, daemon=True, name="spelling")
+        self._spelling_thread.start()
+        return True
+
+    def accept_spelling(self, heard: str) -> dict:
+        """The user approved a suggestion: it becomes an eigen woord."""
+        word = self.spelling.accept(str(heard or ""))
+        if not word:
+            return {
+                "ok": False,
+                "error": "Dit voorstel bestaat niet meer.",
+                "spelling": self.spelling_payload(),
+            }
+        self.learning.add_word(word)
+        log.info("spelling suggestion accepted: %s -> %s", heard, word)
+        return {
+            "ok": True,
+            "learning": self.learning.payload(),
+            "spelling": self.spelling_payload(),
+        }
+
+    def dismiss_spelling(self, heard: str) -> dict:
+        removed = self.spelling.dismiss(str(heard or ""))
+        return {"ok": True, "removed": removed, "spelling": self.spelling_payload()}
 
     def open_path(self, path) -> None:
         try:
@@ -331,6 +418,9 @@ class Shell:
         )
         if self.ui is not None:
             self.ui.emit_delivered(item, self.history.items(), self.stats())
+        # A fresh transcript is the best moment to see whether a name keeps
+        # coming back; the lookup itself happens in the background.
+        self.refresh_spelling()
 
     def sync_listening(self) -> None:
         """Tray and window both show the state of the hotkey."""
@@ -401,11 +491,16 @@ class Shell:
         return self.overlay
 
     def apply_settings(self, cfg: dict) -> None:
+        was_looking = bool(self.cfg.get("lookup_spelling"))
         self.cfg = cfg
         crashlog.set_enabled(cfg.get("crash_logging", True))
         self.dictator.apply_config(cfg)
         if self.ui is not None:
             self.ui.emit_settings(cfg)
+        if cfg.get("lookup_spelling") and not was_looking:
+            # Switching it on should not wait for the next dictation.
+            self._spelling_last = 0.0
+            self.refresh_spelling()
         self.sync_listening()
         if not cfg.get("overlay", True) and self.overlay is not None:
             self.overlay.hide()

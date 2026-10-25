@@ -29,7 +29,7 @@ log = logging.getLogger("dictate")
 UI_DIR = Path(__file__).resolve().parent / "ui"
 ICON = Path(__file__).resolve().parent / "assets" / "icon.ico"
 TITLE = "Dicteer"
-APP_VERSION = "2.0.15"
+APP_VERSION = "2.0.16"
 
 DEFAULT_WIDTH = 1080
 DEFAULT_HEIGHT = 760
@@ -314,6 +314,17 @@ class Api:
     def add_vocabulary(self, word: str) -> dict:
         return self.shell.add_vocabulary(word)
 
+    def accept_spelling(self, heard: str) -> dict:
+        return self.shell.accept_spelling(heard)
+
+    def dismiss_spelling(self, heard: str) -> dict:
+        return self.shell.dismiss_spelling(heard)
+
+    def lookup_spelling(self) -> dict:
+        """Look for new names now, instead of after the next dictation."""
+        started = self.shell.refresh_spelling(throttle=0)
+        return {"ok": True, "started": started, "spelling": self.shell.spelling_payload()}
+
     def clear_learning(self) -> dict:
         return self.shell.clear_learning()
 
@@ -538,6 +549,9 @@ class WebUI:
 
     def emit_settings(self, cfg: dict) -> None:
         self.emit({"type": "settings", "value": cfg})
+
+    def emit_spelling(self, payload: dict) -> None:
+        self.emit({"type": "spelling", "value": payload})
 
     def emit_toast(self, text: str, kind: str = "ok") -> None:
         self.emit({"type": "toast", "value": {"text": text, "kind": kind}})

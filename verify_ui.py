@@ -755,6 +755,50 @@ def main() -> int:
                       str(shell.learning.payload()))
                 check("the card returns to its empty state", evaluate(window, "document.getElementById('learn-empty').hidden") is False)
 
+                # --- spelling suggestions --------------------------------
+                check(
+                    "name lookup is off until it is switched on",
+                    evaluate(window, "document.getElementById('set-lookup').checked") is False
+                    and shell.spelling_payload()["enabled"] is False,
+                )
+                check(
+                    "the suggestion card is hidden without proposals",
+                    evaluate(window, "document.getElementById('learn-spelling-block').hidden") is True,
+                )
+                # Put one in the store and push it the way the shell does after
+                # a background pass; from here the window does the work.
+                shell.spelling._proposals["gitlab"] = {
+                    "heard": "gitlab", "word": "GitLab", "count": 3, "ts": time.time()
+                }
+                evaluate(
+                    window,
+                    "window.dictate.push({type: 'spelling', value: "
+                    + json.dumps(shell.spelling_payload()) + "})",
+                )
+                check(
+                    "a pushed suggestion shows the spelling it proposes",
+                    wait_text(window, "#learn-spelling", "GitLab", 6)
+                    and "gitlab" in str(evaluate(window, "document.getElementById('learn-spelling').textContent")).lower(),
+                    # Not the row's text: it holds an arrow the console cannot print.
+                    str(shell.spelling_payload()["proposals"]),
+                )
+                evaluate(window, "document.querySelector('#learn-spelling .ghost-button.mini').click()")
+                check(
+                    "approving a suggestion adds the word in the window",
+                    wait_js(window, "document.getElementById('learn-vocabulary').textContent.includes('GitLab')", True, 8)
+                    and any(row["word"] == "GitLab" for row in shell.learning.vocabulary()),
+                    str([row["word"] for row in shell.learning.vocabulary()]),
+                )
+                check(
+                    "the engine enforces the approved spelling",
+                    shell.dictator._postprocess("ik open gitlab") == "ik open GitLab",
+                    shell.dictator._postprocess("ik open gitlab"),
+                )
+                check(
+                    "the suggestion card disappears once it is handled",
+                    wait_js(window, "document.getElementById('learn-spelling-block').hidden", True, 6),
+                )
+
                 # --- history actions -------------------------------------
                 evaluate(window, "document.querySelector('[data-view=\"history\"].nav-item').click()")
                 evaluate(window, "document.querySelector('[data-view=\"history\"].nav-item').click()")

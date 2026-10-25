@@ -66,7 +66,7 @@ GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:g
 GEMINI_KEYS_URL = "https://aistudio.google.com/app/apikey"
 GEMINI_LIMITS = "Gratis tier · daglimiet en snelheid verschillen per model (zie AI Studio)"
 
-USER_AGENT = "Dicteer/2.0.15"
+USER_AGENT = "Dicteer/2.0.16"
 
 # Every online provider the app can talk to. The window only ever sees these
 # fields, never a key: ``status`` copies them out for the settings card.

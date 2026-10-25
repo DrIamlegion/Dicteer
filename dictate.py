@@ -152,6 +152,8 @@ DEFAULT_CONFIG = {
     "min_seconds": 0.35,
     "beeps": True,
     "learn_from_corrections": True,
+    # Off by default: it is the only feature that sends a word off the machine.
+    "lookup_spelling": False,
     "crash_logging": True,
     "online_backend": "local",
     "gemini_model": "gemini-3.5-flash-lite",

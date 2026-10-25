@@ -159,6 +159,7 @@ def apply_updates(current: dict, updates: dict) -> dict:
             "post_space": _as_bool(cfg.get("post_space", True)),
             "beeps": _as_bool(cfg.get("beeps", True)),
             "learn_from_corrections": _as_bool(cfg.get("learn_from_corrections", True)),
+            "lookup_spelling": _as_bool(cfg.get("lookup_spelling", False)),
             "crash_logging": _as_bool(cfg.get("crash_logging", True)),
         }
     )
