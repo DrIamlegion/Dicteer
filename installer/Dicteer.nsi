@@ -20,10 +20,10 @@ BrandingText "Dicteer"
 !include "x64.nsh"
 
 !ifndef APP_VERSION
-  !define APP_VERSION "2.0.14"
+  !define APP_VERSION "2.0.15"
 !endif
 !ifndef APP_FILEVERSION
-  !define APP_FILEVERSION "2.0.14.0"
+  !define APP_FILEVERSION "2.0.15.0"
 !endif
 
 !define APP_NAME "Dicteer"

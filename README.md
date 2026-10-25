@@ -220,16 +220,21 @@ difference:
 
 * **word corrections** — a changed single word (`inluchtpagina` →
   `inlogpagina`) is remembered and applied to future transcripts as a whole
-  word, regardless of capitals. Substrings are left alone.
+  word, regardless of capitals. Substrings are left alone. A capital you add in
+  the middle of a sentence (`Freebuff` → `FreeBuff`) is enforced the same way,
+  because a spelling list only asks a model politely while a correction holds
+  every time.
 * **eigen woorden** — names and identifiers the user typed in the correction
   (`Codebuff`, `WebSocket`, `useEffect`) are added to Whisper's
-  `initial_prompt`, so the model is nudged to spell them that way.
+  `initial_prompt` and to the Gemini spelling list, so both models are nudged to
+  spell them that way.
 
 Only single-word replacements become corrections; a rephrase like "web socket"
 → "WebSocket" would otherwise teach half a phrase to the wrong word. Name-like
 vocabulary is still learned from such an edit, and capitalisation-only fixes are
 recognised as proper nouns. Common words ("de" → "het") are ignored, and so is
-capitalisation that is merely the start of a sentence.
+capitalisation that is merely the start of a sentence — otherwise every
+corrected sentence would teach its first word a capital.
 
 The result: the next time you dictate the same name, it comes out the way you
 wrote it. Everything is local in `learning.json` next to `config.json`.
@@ -578,7 +583,7 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.14.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.15.exe`:
 the status is `Valid` once Windows trusts the chain. SmartScreen is a separate
 matter: the prompt fades only as the publisher's reputation grows, and that is
 as true for EV certificates as for OV ones.

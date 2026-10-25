@@ -5,7 +5,9 @@ No model is fine-tuned and nothing leaves the machine. Two small, inspectable
 things are learned when the user edits a dictation in the history:
 
 * **word corrections** - ``inluchtpagina`` -> ``inlogpagina`` - applied to
-  future transcripts as whole words, case-insensitively;
+  future transcripts as whole words, case-insensitively. A capital the user put
+  in the middle of a sentence counts here too: a model may drop the capital in
+  ``FreeBuff`` on any given day, while a correction enforces it every time;
 * **technical vocabulary** - names, acronyms and camelCase words the user typed
   in the correction - added to Whisper's ``initial_prompt`` so it spells them
   the way the user does.
@@ -320,7 +322,22 @@ class LearningStore:
                         continue
                     if _key(old_word) != _key(new_word):
                         continue
-                    vocabulary.append((new_word, j1 + offset))
+                    index = j1 + offset
+                    vocabulary.append((new_word, index))
+                    # The same fix is worth enforcing, not just teaching: a
+                    # spelling list nudges the model, while a correction holds.
+                    # Only mid-sentence words qualify - a capital on the first
+                    # word of a sentence is grammar, not a spelling choice.
+                    clean_new = new_word.strip(".,;:!?")
+                    previous = new_tokens[index - 1] if index > 0 else ""
+                    sentence_start = not previous or previous.endswith((".", "!", "?", "…", ":", ";"))
+                    if (
+                        not sentence_start
+                        and len(_key(clean_new)) >= 3
+                        and _key(clean_new) not in STOPWORDS
+                        and len(learned_pairs) < MAX_PAIRS_PER_EDIT
+                    ):
+                        learned_pairs.append((_key(old_word), clean_new))
             if tag != "replace":
                 continue
             if (i2 - i1) == (j2 - j1):

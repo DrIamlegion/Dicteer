@@ -1246,6 +1246,21 @@ def test_learning() -> None:
         words = [row["word"] for row in store.vocabulary()]
         check("a capitalisation fix teaches a proper noun", "Codebuff" in words, str(words))
         check("sentence-start capitalisation is not vocabulary", "Voeg" not in words, str(words))
+        pairs = {(row["heard"], row["fixed"]) for row in store.corrections()}
+        check("a mid-sentence capital is enforced, not only taught",
+              ("codebuff", "Codebuff") in pairs, str(pairs))
+        check("the enforced capital reaches later dictations",
+              store.apply_text("voeg het toe voor codebuff") == "voeg het toe voor Codebuff",
+              store.apply_text("voeg het toe voor codebuff"))
+        check("an already correct spelling is left alone",
+              store.apply_text("voor Codebuff") == "voor Codebuff", store.apply_text("voor Codebuff"))
+
+        store.learn_from_diff("vandaag is het druk", "Vandaag is het druk")
+        words = [row["word"] for row in store.vocabulary()]
+        check("a sentence-start capital teaches neither rule",
+              "Vandaag" not in words
+              and all(row["heard"] != "vandaag" for row in store.corrections()),
+              f"{words} {store.corrections()}")
 
         ignored = store.learn_from_diff("de pagina", "het pagina")
         check("stopword-only changes are ignored", ignored == {"corrections": 0, "words": 0}, str(ignored))
