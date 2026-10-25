@@ -135,7 +135,8 @@ def wikidata_lookup(word: str, language: str = "nl", timeout: float = TIMEOUT) -
     with urllib.request.urlopen(request, timeout=timeout) as response:
         payload = json.loads(response.read().decode("utf-8", "replace"))
     labels = [str(item.get("label") or "") for item in payload.get("search") or []]
-    exact = [label for label in labels if _capitals_only(word, label)]
+    wanted = str(word or "").lower()
+    exact = [label for label in labels if label and label.lower() == wanted]
     if not exact:
         return None
     exact.sort(key=lambda label: (not any(ch.isupper() for ch in label), label))
@@ -234,19 +235,26 @@ class SpellingStore:
             skip = {key.lower() for key in known} | set(self._tried) | set(self._proposals)
         picks = _picks(unknown_counts(texts[:MAX_TEXTS], skip), limit)
         looked = added = 0
+        changed = False
         for pick in picks:
             key = pick["key"]
             forms = pick["forms"]
             heard = max(forms.items(), key=lambda item: item[1])[0]
             try:
                 label = self.lookup(heard, language)
+                failed = False
             except Exception as exc:  # network, DNS, a rate limit - all the same
-                log.debug("could not look up %r: %s", heard, exc)
+                log.info("could not look up %r: %s", heard, exc)
                 label = None
+                failed = True
             looked += 1
             fix = _fix_for(forms, str(label or ""))
             with self._lock:
-                self._tried[key] = {"label": str(label or ""), "ts": time.time()}
+                if not failed:
+                    # A failure is not an answer: not caching it means the word
+                    # is tried again next time instead of being written off.
+                    self._tried[key] = {"label": str(label or ""), "ts": time.time()}
+                    changed = True
                 if fix:
                     self._proposals[key] = {
                         "heard": fix[0],
@@ -255,10 +263,13 @@ class SpellingStore:
                         "ts": time.time(),
                     }
                     added += 1
+                    changed = True
                 self._trim_locked()
+            if failed:
+                continue
             log.info("looked up %r: %s", heard, label or "no match")
         with self._lock:
-            if looked:
+            if changed:
                 self._write_locked()
             proposals = [dict(entry) for entry in self._proposals.values()]
         return {"looked": looked, "added": added, "proposals": proposals}

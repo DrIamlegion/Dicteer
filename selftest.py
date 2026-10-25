@@ -1450,6 +1450,75 @@ def test_spelling_lookup() -> None:
               refused["ok"] is False and bool(refused.get("error")), str(refused))
 
 
+def test_spelling_lookup_http() -> None:
+    """The Wikidata call itself: the URL, the parsing and the exact match.
+
+    The other checks replace the lookup with a fake, which once hid a broken
+    function behind a green suite. This one answers over HTTP for real.
+    """
+    import tempfile
+
+    seen: dict = {}
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802 - stdlib handler name
+            seen["path"] = self.path
+            seen["headers"] = dict(self.headers)
+            labels = ["Github Enterprise", "GitHub", "github"] if "github" in self.path else ["Dicteerderij"]
+            payload = json.dumps(
+                {"search": [{"id": f"Q{index}", "label": label} for index, label in enumerate(labels)]}
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, *_args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    real = enrich.WIKIDATA
+    enrich.WIKIDATA = f"http://127.0.0.1:{server.server_port}/w/api.php"
+    try:
+        check("the lookup finds a label that only differs in capitals",
+              enrich.wikidata_lookup("github", "nl") == "GitHub",
+              repr(enrich.wikidata_lookup("github", "nl")))
+        path = seen.get("path", "")
+        check("the lookup asks the search API for the word",
+              "wbsearchentities" in path and "search=github" in path and "language=nl" in path, path)
+        check("the lookup sends a user agent",
+              bool(seen.get("headers", {}).get("User-Agent")), str(seen.get("headers", {}).get("User-Agent")))
+        check("a fuzzy result for another word is not accepted",
+              enrich.wikidata_lookup("dicteer", "nl") is None,
+              repr(enrich.wikidata_lookup("dicteer", "nl")))
+    finally:
+        enrich.WIKIDATA = real
+        server.shutdown()
+        server.server_close()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        calls: list[str] = []
+
+        def flaky(word, language):
+            calls.append(word)
+            if len(calls) == 1:
+                raise OSError("temporary failure in name resolution")
+            return "Gemini"
+
+        store = enrich.SpellingStore(Path(tmp) / "spelling.json", lookup=flaky)
+        texts = ["Ik open gemini erbij.", "nog eens Gemini erbij."]
+        first = store.harvest(texts, set(), language="nl")
+        check("a failed lookup proposes nothing", first["added"] == 0, str(first))
+        check("a failed lookup is not remembered as an answer", store.looked_up() == 0, str(store.looked_up()))
+        second = store.harvest(texts, set(), language="nl")
+        check("a failed word is tried again on the next pass",
+              len(calls) == 2 and second["added"] >= 0, f"{len(calls)} call(s)")
+        check("the retry can still produce a proposal",
+              any(row["word"] == "Gemini" for row in store.proposals()), str(store.proposals()))
+
+
 def test_version_numbers() -> None:
     """A spoken version keeps its components; decimals and part numbers do not."""
 
@@ -2412,6 +2481,7 @@ def main(argv: list[str] | None = None) -> int:
     test_window_placement()
     test_learning()
     test_spelling_lookup()
+    test_spelling_lookup_http()
     test_version_numbers()
     test_licence_notices()
     test_cloud_credentials()
