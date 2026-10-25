@@ -167,12 +167,40 @@ def _working_input():
 
 
 def test_state_machine() -> None:
+    """Record -> transcribe -> deliver, with the microphone and model faked.
+
+    Nothing here needs real hardware, so the check also runs on a build runner
+    that has no input device.
+    """
     cfg = dict(app.DEFAULT_CONFIG)
     cfg["min_seconds"] = 0.2
     cfg["beeps"] = False
     cfg["model"] = "tiny.en"  # not used: transcription is stubbed out
-    cfg["input_device"] = _working_input()
+    cfg["input_device"] = None
     args = argparse.Namespace(no_paste=True)
+
+    class FakeRecorder:
+        def __init__(self, device) -> None:
+            self.device = device
+            self.rate = 16000
+            self.sink = None
+
+        def start(self) -> None:
+            pass
+
+        def stop(self):
+            return np.ones(int(16000 * 1.2), dtype=np.float32)
+
+    class FakeStream:
+        def __init__(self) -> None:
+            self.stopped = False
+
+        def push(self, block) -> None:
+            pass
+
+        def stop(self, timeout: float = 4.0) -> str:
+            self.stopped = True
+            return ""
 
     dicta = app.Dictator(cfg, args)
     delivered: list[str] = []
@@ -183,6 +211,17 @@ def test_state_machine() -> None:
     )
     dicta.deliver = lambda text: delivered.append(text)  # type: ignore[assignment]
 
+    original_recorder = app.Recorder
+    app.Recorder = FakeRecorder  # type: ignore[assignment]
+    dicta._make_stream = lambda rate: FakeStream()  # type: ignore[assignment]
+    try:
+        _run_state_machine(dicta, delivered)
+    finally:
+        app.Recorder = original_recorder
+        dicta.cancel()
+
+
+def _run_state_machine(dicta, delivered: list[str]) -> None:
     dicta.toggle()  # start
     recording = dicta._state == "recording"
     check("hotkey starts recording", recording, dicta._state)
@@ -807,8 +846,15 @@ def test_shell_ui() -> None:
         data_dir = Path(tmp).resolve()
         check("history follows the config that produced it", shell.history.path.parent == data_dir, str(shell.history.path))
         check("learning follows the config too", shell.learning.path.parent == data_dir, str(shell.learning.path))
+        # Compared by identity, not by string: a temp folder can be reported
+        # with its 8.3 short name (RUNNER~1) while the shell has the long one.
+        try:
+            crash_follows = Path(shell.crash_log_path).parent.samefile(data_dir)
+        except OSError:
+            crash_follows = False
         check("the crash log follows the config too",
-              shell.crash_log_path == data_dir / "crash.log", str(shell.crash_log_path))
+              crash_follows and Path(shell.crash_log_path).name == "crash.log",
+              str(shell.crash_log_path))
 
         entries = list(shell.menu())
         check("tray menu builds", len(entries) >= 9, f"{len(entries)} entries")
