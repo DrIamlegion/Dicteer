@@ -575,7 +575,7 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.12.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.13.exe`:
 the status is `Valid` once Windows trusts the chain. SmartScreen is a separate
 matter: the prompt fades only as the publisher's reputation grows, and that is
 as true for EV certificates as for OV ones.
