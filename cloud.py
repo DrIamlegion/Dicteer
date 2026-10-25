@@ -43,12 +43,14 @@ GROQ_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 GROQ_KEYS_URL = "https://console.groq.com/keys"
 FREE_LIMITS = "20 verzoeken/min · 2.000/dag · 7.200 audio-seconden/uur"
 
-GEMINI_MODEL = "gemini-3.8-flash"
+# Measured on a 5.4 s clip: this answers in 1.3 s; gemini-3.8-flash took over
+# two minutes because of its default thinking, which no dictation can wait for.
+GEMINI_MODEL = "gemini-3.5-flash-lite"
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 GEMINI_KEYS_URL = "https://aistudio.google.com/app/apikey"
 GEMINI_LIMITS = "Gratis tier · daglimiet en snelheid verschillen per model (zie AI Studio)"
 
-USER_AGENT = "Dicteer/2.0.9"
+USER_AGENT = "Dicteer/2.0.10"
 
 # Every online provider the app can talk to. The window only ever sees these
 # fields, never a key: ``status`` copies them out for the settings card.

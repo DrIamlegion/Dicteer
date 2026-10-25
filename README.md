@@ -270,7 +270,7 @@ that needs no credit card, and both leave the live preview on your machine.
 | | model | best for |
 | --- | --- | --- |
 | **Groq** | `whisper-large-v3-turbo` | the same family as the local model, but a much larger network: strong Dutch, fast, generous free limits |
-| **Google Gemini** | `gemini-3.8-flash` | better at names, jargon and sentence punctuation, and it follows the learned vocabulary as spelling instructions |
+| **Google Gemini** | `gemini-3.5-flash-lite` | about a second per clip, better punctuation than Whisper, and it follows the learned vocabulary as spelling instructions |
 
 **Turn it on**
 
@@ -329,7 +329,7 @@ mic (44.1/48 kHz) -> box-average decimation to 16 kHz -> faster-whisper (CTransl
    -> text -> clipboard -> simulated Ctrl+V into the focused window
 
 optional: the final clip -> Groq (whisper-large-v3-turbo) -> text
-                         or Gemini (gemini-3.8-flash) -> text
+                         or Gemini (gemini-3.5-flash-lite) -> text
           on any error -> the local path above
 ```
 
@@ -566,7 +566,7 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.9.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.10.exe`:
 the status is `Valid` once Windows trusts the chain. SmartScreen is a separate
 matter: the prompt fades only as the publisher's reputation grows, and that is
 as true for EV certificates as for OV ones.

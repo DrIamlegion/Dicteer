@@ -20,7 +20,7 @@
     listening: true,
     current: "idle",
     hotkeyLabel: "F9",
-    version: "2.0.9",
+    version: "2.0.10",
     models: [],
     cloud: { backend: "local", has_key: false, keys: {}, providers: {}, model: "", free_limits: "", keys_url: "" },
     configPath: "",
@@ -1768,7 +1768,7 @@
         keys_url: "https://console.groq.com/keys", key_hint: "gsk_...",
       },
       gemini: {
-        name: "Google Gemini", model: "gemini-3.8-flash",
+        name: "Google Gemini", model: "gemini-3.5-flash-lite",
         free_limits: "Gratis tier · daglimiet en snelheid verschillen per model (zie AI Studio)",
         keys_url: "https://aistudio.google.com/app/apikey", key_hint: "AIza...",
       },
@@ -1805,7 +1805,7 @@
             { id: "Microfoon (USB-headset)", name: "Microfoon (USB-headset)", label: "Microfoon (USB-headset)", index: 3, default: false, api: "Windows WASAPI", rate: 48000 },
           ],
           cloud: cloudPayload(),
-          autostart: false, hotkey_label: "F9", version: "2.0.9 (demo)",
+          autostart: false, hotkey_label: "F9", version: "2.0.10 (demo)",
           crash_log_path: "crash.log (demo)",
           models: MODEL_ORDER.concat(["tiny", "base", "small", "medium"].map((name) => `${name}.en`)),
           model_dir: "C:\\Users\\gebruiker\\AppData\\Roaming\\Dicteer\\models",
@@ -1956,7 +1956,7 @@
         await new Promise((resolve) => setTimeout(resolve, 350));
         return {
           ok: true,
-          current: "2.0.9",
+          current: "2.0.10",
           latest: "2.1.0",
           available: true,
           name: "Dicteer v2.1.0",

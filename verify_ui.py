@@ -24,6 +24,8 @@ from pathlib import Path
 
 import webview
 
+import cloud
+
 APP = Path(__file__).resolve().parent
 
 log = logging.getLogger("verify-ui")
@@ -442,7 +444,7 @@ def main() -> int:
                       gemini_key_saved and shell.credentials.has("gemini") and not shell.credentials.has("groq"))
                 check(
                     "the online note names the Gemini model",
-                    wait_text(window, "#cloud-note", "gemini-3.8-flash", 5),
+                    wait_text(window, "#cloud-note", "gemini-3.5-flash-lite", 5),
                     str(evaluate(window, "document.getElementById('cloud-note').textContent")),
                 )
                 evaluate(window, "document.getElementById('save-settings').click()")
@@ -460,12 +462,12 @@ def main() -> int:
                       getattr(shell.dictator.cloud, "backend", "") == "gemini",
                       str(getattr(shell.dictator.cloud, "backend", "")))
                 check("the engine reports the Gemini model for history",
-                      getattr(shell.dictator.cloud, "model", "") == "gemini-3.8-flash",
+                      getattr(shell.dictator.cloud, "model", "") == cloud.GEMINI_MODEL,
                       str(getattr(shell.dictator.cloud, "model", "")))
                 check(
                     "the About card names Gemini and its model",
                     evaluate(window, "document.getElementById('about-engine').textContent")
-                    == "Google Gemini (online) · gemini-3.8-flash",
+                    == "Google Gemini (online) · gemini-3.5-flash-lite",
                     str(evaluate(window, "document.getElementById('about-engine').textContent")),
                 )
                 raw_credentials = credentials_path.read_text(encoding="utf-8") if credentials_path.exists() else ""
