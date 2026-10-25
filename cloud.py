@@ -43,9 +43,12 @@ GROQ_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 GROQ_KEYS_URL = "https://console.groq.com/keys"
 FREE_LIMITS = "20 verzoeken/min · 2.000/dag · 7.200 audio-seconden/uur"
 
-# Measured on the same 5.4 s clip, with the vocabulary prompt: flash-lite
-# answered in 1.3 s, 3.6 Flash in 5.2 s with better punctuation, and 3.8 Flash
-# in 31 s and once over two minutes - too slow for the 30 s dictation timeout.
+# Measured twice here: one 5.4 s clip, then ten of the user's own sentences two
+# rounds each. flash-lite answered in about 1.1 s and never refused; 3.6 Flash
+# took about 3.3 s and was no more accurate (word error 0.081 against 0.089,
+# both tripping over the product name), and it refused 6 of 20 calls on the free
+# tier. 3.8 Flash took 31 s and once over two minutes, past the 30 s dictation
+# timeout, so it is not offered.
 GEMINI_MODEL = "gemini-3.5-flash-lite"
 GEMINI_MODELS = (
     {
@@ -56,14 +59,14 @@ GEMINI_MODELS = (
     {
         "value": "gemini-3.6-flash",
         "label": "3.6 Flash",
-        "note": "nauwkeuriger en betere leestekens, ongeveer 5 seconden",
+        "note": "even nauwkeurig, maar ongeveer 3 seconden en snel aan de gratis limiet",
     },
 )
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 GEMINI_KEYS_URL = "https://aistudio.google.com/app/apikey"
 GEMINI_LIMITS = "Gratis tier · daglimiet en snelheid verschillen per model (zie AI Studio)"
 
-USER_AGENT = "Dicteer/2.0.11"
+USER_AGENT = "Dicteer/2.0.12"
 
 # Every online provider the app can talk to. The window only ever sees these
 # fields, never a key: ``status`` copies them out for the settings card.

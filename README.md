@@ -286,11 +286,12 @@ that needs no credit card, and both leave the live preview on your machine.
 Switching between local, Groq and Gemini applies immediately, without a restart.
 
 **Picking a Gemini model.** While Gemini is selected the card grows one more
-field, **Geminimodel**, with two measured options: `3.5 Flash-Lite` (about a
-second per dictation, the default) and `3.6 Flash` (about five seconds, but it
-keeps the commas and reads slightly better). Both were timed on the same 5.4 s
-clip with the vocabulary prompt. The choice is stored in `gemini_model` and
-applies without a restart.
+field, **Geminimodel**. `3.5 Flash-Lite` is the default and the one to keep:
+about a second for a five second dictation, and it answered every call in the
+measurement. `3.6 Flash` was no more accurate on ten of the user's own sentences
+(word error 0.081 against 0.089, both stumbling over the product name), took
+about three times as long, and refused six of twenty calls on the free tier. The
+choice is stored in `gemini_model` and applies without a restart.
 
 **What leaves the PC**
 
@@ -574,7 +575,7 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.11.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.12.exe`:
 the status is `Valid` once Windows trusts the chain. SmartScreen is a separate
 matter: the prompt fades only as the publisher's reputation grows, and that is
 as true for EV certificates as for OV ones.

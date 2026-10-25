@@ -20,7 +20,7 @@
     listening: true,
     current: "idle",
     hotkeyLabel: "F9",
-    version: "2.0.11",
+    version: "2.0.12",
     models: [],
     cloud: { backend: "local", has_key: false, keys: {}, providers: {}, model: "", gemini_model: "", gemini_models: [], free_limits: "", keys_url: "" },
     configPath: "",
@@ -1010,7 +1010,7 @@
   // Used when the bridge predates the picker; the bridge's own list wins.
   const GEMINI_FALLBACK = [
     { value: "gemini-3.5-flash-lite", label: "3.5 Flash-Lite", note: "snelst, ongeveer 1 seconde per dictaat" },
-    { value: "gemini-3.6-flash", label: "3.6 Flash", note: "nauwkeuriger en betere leestekens, ongeveer 5 seconden" },
+    { value: "gemini-3.6-flash", label: "3.6 Flash", note: "even nauwkeurig, maar ongeveer 3 seconden en snel aan de gratis limiet" },
   ];
 
   function providerMeta(provider) {
@@ -1853,7 +1853,7 @@
             { id: "Microfoon (USB-headset)", name: "Microfoon (USB-headset)", label: "Microfoon (USB-headset)", index: 3, default: false, api: "Windows WASAPI", rate: 48000 },
           ],
           cloud: cloudPayload(),
-          autostart: false, hotkey_label: "F9", version: "2.0.11 (demo)",
+          autostart: false, hotkey_label: "F9", version: "2.0.12 (demo)",
           crash_log_path: "crash.log (demo)",
           models: MODEL_ORDER.concat(["tiny", "base", "small", "medium"].map((name) => `${name}.en`)),
           model_dir: "C:\\Users\\gebruiker\\AppData\\Roaming\\Dicteer\\models",
@@ -2007,7 +2007,7 @@
         await new Promise((resolve) => setTimeout(resolve, 350));
         return {
           ok: true,
-          current: "2.0.11",
+          current: "2.0.12",
           latest: "2.1.0",
           available: true,
           name: "Dicteer v2.1.0",
