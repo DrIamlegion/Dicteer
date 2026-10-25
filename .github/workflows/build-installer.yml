@@ -130,6 +130,24 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pyinstaller
 
+      # Two self-tests run real Whisper models, and a fresh runner has none. The
+      # three models are about half a gigabyte, so they are cached: the first tag
+      # downloads them, every later tag restores them. Bump the key when the
+      # tested models change.
+      - name: Restore the Whisper models
+        uses: actions/cache@v4
+        with:
+          path: models
+          key: whisper-models-${{ runner.os }}-small-base-base.en-v1
+
+      # test_dutch checks the configuration the installer ships, and skips when
+      # it is not Dutch. A runner has no configuration at all, so the delivered
+      # one is copied in and the Dutch path gets exercised too.
+      - name: Seed the shipped Dutch configuration
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: Copy-Item installer\default-config.json config.json -Force
+
       - name: Byte-compile
         shell: pwsh
         run: |
@@ -150,10 +168,11 @@ jobs:
           "FREEBUFF_SIGN_PFX=$path" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "Signing certificate written ($($bytes.Length) bytes)."
 
-      # Two of the self-tests load Whisper models, which a runner would download
-      # on every build. The rest run here with -SkipModelTests, so a broken
-      # version number, licence notice or picker label fails the build instead of
-      # reaching an installer.
+      # A tag runs the whole suite, models included: they come from the cache
+      # above, so the download is a one-time cost. A push to main runs the same
+      # suite minus the three model checks, which keeps ordinary builds quick.
+      # Either way a stale version number, licence notice or picker label stops
+      # the build instead of reaching an installer.
       - name: Build the app and installer (local certificate)
         if: env.SIGN_PFX_BASE64 != ''
         shell: pwsh
@@ -256,7 +275,11 @@ jobs:
           if ("${{ github.ref_type }}" -eq 'tag') {
             Write-Warning 'Publishing this tag unsigned; set the SignPath variables or the certificate secrets to publish a signed installer.'
           }
-          ./build-installer.ps1 -SkipModelTests
+          if ("${{ github.ref_type }}" -eq 'tag' -or "${{ github.event_name }}" -eq 'workflow_dispatch') {
+            ./build-installer.ps1
+          } else {
+            ./build-installer.ps1 -SkipModelTests
+          }
           'SIGNED=false' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Record whether the build is signed
