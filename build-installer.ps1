@@ -2,6 +2,11 @@
 #
 #   .\build-installer.ps1              tests, then exe + installer
 #   .\build-installer.ps1 -SkipTests   exe + installer only
+#   .\build-installer.ps1 -SkipModelTests
+#                                      run the self-tests, but skip the two that
+#                                      load Whisper models (for CI, which has no
+#                                      model cache and would download hundreds of
+#                                      megabytes on every build)
 #   .\build-installer.ps1 -ExeOnly     exe only, no installer
 #   .\build-installer.ps1 -InstallerOnly
 #                                      package the exe already in dist\Dicteer
@@ -17,6 +22,7 @@
 # install. The first build downloads PyInstaller and NSIS into the project.
 param(
     [switch]$SkipTests,
+    [switch]$SkipModelTests,
     [switch]$ExeOnly,
     [switch]$InstallerOnly,
 
@@ -71,7 +77,11 @@ if ($InstallerOnly) {
 } else {
     if (-not $SkipTests) {
         Write-Host 'Running self-tests...' -ForegroundColor Cyan
-        & $python selftest.py
+        if ($SkipModelTests) {
+            & $python selftest.py --without-models
+        } else {
+            & $python selftest.py
+        }
         if ($LASTEXITCODE -ne 0) { throw "Self-tests failed (exit $LASTEXITCODE)" }
     }
 

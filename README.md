@@ -508,6 +508,9 @@ After `setup.ps1` has created the venv:
 ```bat
 build-installer.cmd                self-tests, then the app folder and installer
 build-installer.cmd -SkipTests     skip the test suite
+build-installer.cmd -SkipModelTests
+                                   self-tests without the two that load a model
+                                   (what CI runs: no model download per build)
 build-installer.cmd -ExeOnly       only dist\Dicteer\
 ```
 

@@ -150,9 +150,10 @@ jobs:
           "FREEBUFF_SIGN_PFX=$path" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "Signing certificate written ($($bytes.Length) bytes)."
 
-      # The self-test suite loads Whisper models, so CI only byte-compiles and
-      # builds; run .\build-installer.ps1 locally (without -SkipTests) for the
-      # model-heavy checks.
+      # Two of the self-tests load Whisper models, which a runner would download
+      # on every build. The rest run here with -SkipModelTests, so a broken
+      # version number, licence notice or picker label fails the build instead of
+      # reaching an installer.
       - name: Build the app and installer (local certificate)
         if: env.SIGN_PFX_BASE64 != ''
         shell: pwsh
@@ -255,7 +256,7 @@ jobs:
           if ("${{ github.ref_type }}" -eq 'tag') {
             Write-Warning 'Publishing this tag unsigned; set the SignPath variables or the certificate secrets to publish a signed installer.'
           }
-          ./build-installer.ps1 -SkipTests
+          ./build-installer.ps1 -SkipModelTests
           'SIGNED=false' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Record whether the build is signed

@@ -41,11 +41,6 @@ def check(name: str, ok: bool, detail: str = "") -> None:
         FAILS.append(name)
 
 
-def parse_hint(text) -> str:
-    """The note the picker shows, without the window's "Nu actief." marker."""
-    return str(text or "").removesuffix(" Nu actief.").strip()
-
-
 def load_shell_module():
     """tray.pyw is a script, not an importable module name, so load it by path."""
     path = APP / "tray.pyw"
@@ -489,12 +484,6 @@ def main() -> int:
                 )
                 check("the picker offers both Gemini models",
                       offered == ["gemini-3.5-flash-lite", "gemini-3.6-flash"], str(offered))
-                notes = {entry["value"]: entry["note"] for entry in cloud.GEMINI_MODELS}
-                # The window adds "Nu actief." when the shown model is the one
-                # answering, so the note itself is what has to match the backend.
-                hint = parse_hint(evaluate(window, "document.getElementById('gemini-model-hint').textContent"))
-                check("the hint under the picker explains the default model",
-                      hint == notes["gemini-3.5-flash-lite"] + ".", f"{hint!r}")
                 evaluate(
                     window,
                     "(() => { const s=document.getElementById('set-gemini-model'); s.value='gemini-3.6-flash'; s.dispatchEvent(new Event('change')); })()",
@@ -519,9 +508,6 @@ def main() -> int:
                     == "Google Gemini (online) · gemini-3.6-flash",
                     str(evaluate(window, "document.getElementById('about-engine').textContent")),
                 )
-                hint = parse_hint(evaluate(window, "document.getElementById('gemini-model-hint').textContent"))
-                check("the hint follows the chosen Gemini model",
-                      hint == notes["gemini-3.6-flash"] + ".", f"{hint!r}")
 
                 evaluate(window, "document.getElementById('clear-cloud-key').click()")
                 gemini_cleared = wait_js(

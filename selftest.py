@@ -37,6 +37,10 @@ import textfix
 
 FAILURES: list[str] = []
 
+# The two checks that load a Whisper model need a download on a fresh machine,
+# which a CI runner has no cache for. `--without-models` skips exactly those.
+SKIP_MODELS = False
+
 
 def check(name: str, ok: bool, detail: str = "") -> None:
     print(f"[{'PASS' if ok else 'FAIL'}] {name}" + (f" - {detail}" if detail else ""))
@@ -113,7 +117,8 @@ def test_clipboard() -> None:
 
         previous = pyperclip.paste()
     except Exception as exc:
-        check("clipboard readable", False, f"{type(exc).__name__}: {exc}")
+        # A build runner or a locked-down session has no clipboard to test.
+        print(f"[SKIP] test_clipboard - no clipboard ({type(exc).__name__}: {exc})")
         return
     marker = f"dicteer-selftest-{time.time():.0f}"
     try:
@@ -536,6 +541,52 @@ def test_dutch() -> None:
     )
 
 
+def needs_model(test) -> None:
+    if SKIP_MODELS:
+        print(f"[SKIP] {test.__name__} - needs a Whisper model")
+        return
+    test()
+
+
+def test_gemini_hint() -> None:
+    """The label under the model picker must not drift from the backend.
+
+    The window fills the hint with whatever note the bridge sends, so a stale
+    label can only ship through the fallback list in ``ui/app.js`` or through a
+    hardcoded string there. Both are read here, without opening a window.
+    """
+    import re
+
+    js = (app.APP_DIR / "ui" / "app.js").read_text(encoding="utf-8")
+    block = re.search(r"const GEMINI_FALLBACK = \[(.*?)\n  \];", js, re.S)
+    check("the window has a fallback Gemini list", block is not None)
+    if block:
+        rows = re.findall(
+            r'\{\s*value:\s*"([^"]*)",\s*label:\s*"([^"]*)",\s*note:\s*"([^"]*)"\s*\}',
+            block.group(1),
+        )
+        expected = [(row["value"], row["label"], row["note"]) for row in cloud.GEMINI_MODELS]
+        check(
+            "the fallback list matches the backend's models, labels and notes",
+            rows == expected,
+            f"{rows} != {expected}",
+        )
+
+    hint = re.search(r'\$\("gemini-model-hint"\)\.textContent\s*=\s*(.*?);', js, re.S)
+    check("the window fills the picker hint", hint is not None)
+    if hint:
+        body = hint.group(1)
+        check("the picker hint comes from the chosen model's own note",
+              "entry.note" in body, " ".join(body.split())[:140])
+        check("the picker hint marks the model that is answering",
+              "Nu actief." in body, " ".join(body.split())[:140])
+    check(
+        "the default Gemini model is the first pick",
+        cloud.GEMINI_MODEL == cloud.GEMINI_MODELS[0]["value"],
+        f"{cloud.GEMINI_MODEL} vs {cloud.GEMINI_MODELS[0]['value']}",
+    )
+
+
 def test_noise_guard() -> None:
     quiet = np.full(16000, 0.001, dtype=np.float32)
     loud = np.full(16000, 0.05, dtype=np.float32)
@@ -548,6 +599,11 @@ def test_noise_guard() -> None:
 def test_hold_to_talk() -> None:
     from pynput.keyboard import Key
 
+    device = _working_input()
+    if device is None:
+        print("[SKIP] test_hold_to_talk - no microphone to record from")
+        return
+
     cfg = dict(app.DEFAULT_CONFIG)
     cfg.update(
         {
@@ -556,7 +612,7 @@ def test_hold_to_talk() -> None:
             "hold_to_talk": True,
             "stream_preview": False,
             "model": "tiny.en",
-            "input_device": _working_input(),
+            "input_device": device,
         }
     )
     dicta = app.Dictator(cfg, argparse.Namespace(no_paste=True))
@@ -2101,9 +2157,20 @@ def test_autostart() -> None:
     )
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    global SKIP_MODELS
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--without-models",
+        action="store_true",
+        help="skip the two checks that load a Whisper model",
+    )
+    SKIP_MODELS = parser.parse_args(argv).without_models
+
     app.setup_logging(False)
     print(f"python {sys.version.split()[0]}  model dir {app.MODEL_DIR}")
+    if SKIP_MODELS:
+        print("skipping the checks that load Whisper models")
     test_config()
     test_resample()
     test_level_dispatch()
@@ -2115,8 +2182,8 @@ def main() -> int:
     test_listen_control()
     test_merge_overlap()
     test_stream_session()
-    test_stream_with_model()
-    test_dutch()
+    needs_model(test_stream_with_model)
+    needs_model(test_dutch)
     test_noise_guard()
     test_hold_to_talk()
     test_overlay_states()
@@ -2134,6 +2201,7 @@ def main() -> int:
     test_cloud_failure_message()
     test_cloud_fallback()
     test_cloud_status()
+    test_gemini_hint()
     test_updates()
     test_legacy_data_migration()
     test_history_stats()
