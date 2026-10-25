@@ -105,6 +105,11 @@ def _fix_for(forms: dict[str, int], label: str) -> tuple[str, str] | None:
         return None
     if label.lower() != next(iter(forms)).lower():
         return None
+    # A label without a single capital is a common word, not a name: asking
+    # after "Marktplaats" returns "marktplaats" (the noun), which would take a
+    # capital away instead of putting one there.
+    if not any(ch.isupper() for ch in label):
+        return None
     wrong = {form: count for form, count in forms.items() if form != label}
     if not wrong:
         return None

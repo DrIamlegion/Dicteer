@@ -296,8 +296,13 @@ class Shell:
         )
         return known
 
-    def refresh_spelling(self, throttle: float = 120.0) -> bool:
-        """Look for new names in the background. Returns whether a pass started."""
+    def refresh_spelling(self, throttle: float = 15.0) -> bool:
+        """Look for new names in the background. Returns whether a pass started.
+
+        The guard is short on purpose: a pass with nothing to look up costs one
+        pass over the recent history and no network at all, while a long one
+        made a name that was dictated twice in a minute wait for minutes.
+        """
         if not self.cfg.get("lookup_spelling"):
             return False
         thread = self._spelling_thread
@@ -309,14 +314,19 @@ class Shell:
         self._spelling_last = now
 
         def run() -> None:
+            texts = [str(item.get("text") or "") for item in self.history.items()]
+            log.info("looking for names in %d dictation(s)", len(texts))
             try:
                 result = self.spelling.harvest(
-                    [str(item.get("text") or "") for item in self.history.items()],
+                    texts,
                     self._known_words(),
                     language=self._lookup_language(),
                 )
             except Exception as exc:  # a lookup may never disturb dictation
-                log.debug("spelling lookup failed: %s", exc)
+                # At info, not debug: a pass that dies silently looks exactly
+                # like a pass that found nothing, and that hid a real fault.
+                log.info("spelling lookup failed: %s", exc)
+                log.debug("traceback", exc_info=True)
                 return
             if result["added"]:
                 log.info("spelling suggestions: %d new", result["added"])

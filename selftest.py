@@ -1347,6 +1347,7 @@ def test_spelling_lookup() -> None:
         "inluchtpagina": "Inlogpagina",  # a fuzzy match that changes letters
         "claude": "Claude",
         "kunnen": "Kunnen",  # a surname: ordinary words must never get here
+        "marktplaats": "marktplaats",  # the noun, not the site: no capital to give
         "backoff": None,
     }
     asked: list[tuple[str, str]] = []
@@ -1366,6 +1367,7 @@ def test_spelling_lookup() -> None:
             "weer de Inluchtpagina.",
             "Vandaag begin ik met Github.",
             "dat kunnen we doen, dat kunnen we laten.",
+            "Ik zet de fiets op Marktplaats en Marktplaats is gratis.",
         ]
         result = store.harvest(texts, {"freebuff"}, language="nl", limit=8)
         proposals = {row["heard"]: row["word"] for row in store.proposals()}
@@ -1376,6 +1378,9 @@ def test_spelling_lookup() -> None:
               not ({"freebuff", "vandaag", "backoff"} & asked_words), str(asked_words))
         check("an ordinary lowercase word is never asked about",
               "kunnen" not in asked_words, str(asked_words))
+        check("a label without a capital is not a spelling to adopt",
+              "marktplaats" not in proposals and "Marktplaats" not in proposals,
+              str(proposals))
         check("the source's capital becomes a proposal",
               proposals.get("github") == "GitHub" and proposals.get("gemini") == "Gemini",
               str(proposals))
@@ -1428,6 +1433,11 @@ def test_spelling_lookup() -> None:
         shell.history.add("Ik open claude en gemini.", duration=2.0, model="small", language="nl", mode="paste")
         shell.history.add("nog eens Claude en Gemini erbij.", duration=2.0, model="small", language="nl", mode="paste")
         check("an enabled lookup starts a pass", shell.refresh_spelling(throttle=0) is True)
+        if shell._spelling_thread is not None:
+            shell._spelling_thread.join(5.0)
+        check("a pass right after another one waits, the button does not",
+              shell.refresh_spelling() is False and shell.refresh_spelling(throttle=0) is True,
+              "the guard did not hold")
         if shell._spelling_thread is not None:
             shell._spelling_thread.join(5.0)
         payload = shell.spelling_payload()

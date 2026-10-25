@@ -315,19 +315,24 @@ terugwachttijd van je WebSocket.
 Drie remmen houden dat in de hand:
 
 * **alleen hoofdletters.** Een voorstel wordt weggegooid tenzij de bron exact
-dezelfde letters gebruikt. `gemini` → `Gemini` mag, `inluchtpagina` →
-`Inlogpagina` niet - een bron die letters verandert is onbetrouwbaar over namen;
+dezelfde letters gebruikt, en de spelling van de bron moet zelf een hoofdletter
+hebben. `Github` → `GitHub` mag, `inluchtpagina` → `Inlogpagina` niet, en
+`Marktplaats` → `marktplaats` ook niet: dat is het zelfstandig naamwoord, geen
+naam, en het zou een hoofdletter weghalen in plaats van er een zetten;
 * **één keer per woord.** Elke opzoeking wordt in `spelling.json` onthouden,
 dus hetzelfde woord wordt nooit twee keer gevraagd en de lijst blijft klein;
 * **alleen wat vaker langskomt.** Een woord moet minstens twee keer in je
 geschiedenis staan, midden in een zin (een hoofdletter aan het begin zegt
 niets), en nog niet in Eigen woorden of de vaste lijst staan.
 
+Een ronde draait na elk dictaat, met een korte adempauze van vijftien seconden
+tussen twee rondes; met **Namen opzoeken** onder Eigen woorden sla je die pauze
+over. Een ronde zonder nieuwe kandidaten kost niets: geen netwerk, alleen de
+recente geschiedenis doorlopen.
+
 Dit is het enige onderdeel dat iets van je machine af stuurt: het woord zelf,
 naar Wikidata, en alleen als je de schakelaar aanzet. Het staat standaard uit.
-Zet je hem aan, dan begint de eerste ronde meteen; met **Namen opzoeken** onder
-Eigen woorden vraag je tussendoor om een nieuwe ronde. **Alles vergeten** wist
-de voorstellen en de onthouden opzoekingen.
+**Alles vergeten** wist de voorstellen en de onthouden opzoekingen.
 
 ### Versienummers
 
@@ -663,7 +668,7 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.17.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.18.exe`:
 the status is `Valid` once Windows trusts the chain. SmartScreen is a separate
 matter: the prompt fades only as the publisher's reputation grows, and that is
 as true for EV certificates as for OV ones.
