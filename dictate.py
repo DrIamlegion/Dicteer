@@ -1251,6 +1251,10 @@ class Dictator:
         self.cfg = cfg
         if old.get("online_backend") != cfg.get("online_backend"):
             self.reset_cloud_warning()
+            # The online client follows the setting, so switching between
+            # Groq and Gemini does not need a restart.
+            if self.cloud is not None and hasattr(self.cloud, "use"):
+                self.cloud.use(cfg.get("online_backend"))
         if any(old.get(k) != cfg.get(k) for k in ("hotkey", "hold_to_talk")) and self.listening:
             self.stop_listening()
             self.start_listening()
@@ -1324,7 +1328,9 @@ def main() -> int:
         credentials = cloud_mod.CredentialStore(
             Path(args.config).resolve().parent / "credentials.json"
         )
-        dictator.cloud = cloud_mod.CloudTranscriber(credentials)
+        dictator.cloud = cloud_mod.CloudTranscriber(
+            credentials, backend=cfg.get("online_backend")
+        )
         dictator.on_notice = lambda message: print(f"  ! {message}")
 
     try:
@@ -1342,8 +1348,9 @@ def main() -> int:
             return 0
 
         backend = str(cfg.get("online_backend") or "local")
+        provider = cloud_mod.PROVIDERS.get(backend, {}).get("name") if backend != "local" else ""
         print("=" * 68)
-        print("  Dicteer - " + ("online via Groq" if backend != "local" else "offline") + " voice to text")
+        print("  Dicteer - " + (f"online via {provider}" if provider else "offline") + " voice to text")
         print(f"  hotkey: {cfg.get('hotkey')}   model: {cfg.get('model')}   "
               f"mode: {cfg.get('mode')}")
         print("  press the hotkey to start talking, press it again to paste")

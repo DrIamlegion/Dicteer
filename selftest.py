@@ -910,10 +910,12 @@ def test_settings_validation() -> None:
     check("the online backend defaults to local", base["online_backend"] == "local")
     check("the online backend can be switched to Groq",
           settings_mod.apply_updates(base, {"online_backend": "groq"})["online_backend"] == "groq")
+    check("the online backend can be switched to Gemini",
+          settings_mod.apply_updates(base, {"online_backend": "gemini"})["online_backend"] == "gemini")
     try:
         settings_mod.apply_updates(base, {"online_backend": "somewhere"})
     except settings_mod.SettingsError as exc:
-        check("an unknown online backend is refused", "lokaal of Groq" in str(exc), str(exc))
+        check("an unknown online backend is refused", "lokaal, Groq of Gemini" in str(exc), str(exc))
     else:
         check("an unknown online backend is refused", False, "no error raised")
     try:
@@ -1394,6 +1396,130 @@ def test_cloud_fallback() -> None:
     dicta.cloud = FakeCloud()
     check("the local backend never calls the cloud",
           dicta.transcribe_audio(audio) == "lokale tekst")
+
+
+def test_gemini_http() -> None:
+    """One generateContent call carries the key, the instruction and the clip."""
+    import tempfile
+
+    seen: dict = {}
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802 - stdlib handler name
+            length = int(self.headers.get("Content-Length") or 0)
+            seen["path"] = self.path
+            seen["headers"] = dict(self.headers)
+            seen["body"] = self.rfile.read(length)
+            payload = json.dumps(
+                {
+                    "candidates": [
+                        {
+                            "content": {"parts": [{"text": "  hallo "}, {"text": "wereld "}]},
+                            "finishReason": "STOP",
+                        }
+                    ]
+                }
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, *_args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = cloud.CredentialStore(Path(tmp) / "credentials.json")
+            key = "AIza" + "test" * 9
+            store.set(key, "gemini")
+            client = cloud.CloudTranscriber(
+                store,
+                backend="gemini",
+                url=f"http://127.0.0.1:{server.server_port}/v1beta/models/"
+                    f"{cloud.GEMINI_MODEL}:generateContent",
+                timeout=5,
+            )
+            text = client.transcribe(
+                np.full(1600, 0.1, dtype=np.float32),
+                language="nl",
+                prompt="Freebuff, Codebuff",
+            )
+            body = json.loads(seen.get("body") or b"{}")
+            headers = seen.get("headers", {})
+            parts = ((body.get("contents") or [{}])[0].get("parts") or [])
+            audio = (parts[1] if len(parts) > 1 else {}).get("inline_data") or {}
+            instruction = parts[0].get("text") if parts else ""
+
+            check("the Gemini transcript joins the answer parts", text == "hallo wereld", repr(text))
+            # urllib capitalises header names, so compare them without case.
+            sent = {name.lower(): value for name, value in headers.items()}
+            check("the Gemini key travels in its own header",
+                  sent.get("x-goog-api-key") == key, str(sent.get("x-goog-api-key")))
+            check("the request asks Gemini for JSON",
+                  headers.get("Content-Type") == "application/json")
+            check("the request names the Gemini model in its path",
+                  cloud.GEMINI_MODEL in seen.get("path", "") and seen.get("path", "").endswith(":generateContent"),
+                  seen.get("path", ""))
+            check("the instruction names the spoken language", "Dutch" in instruction, instruction)
+            check("the instruction carries the learned vocabulary",
+                  "Freebuff, Codebuff" in instruction, instruction)
+            check("the instruction demands only the transcript",
+                  "Return only the transcript" in instruction, instruction)
+            check("the clip is sent inline as 16 kHz WAV",
+                  audio.get("mime_type") == "audio/wav", str(audio.get("mime_type")))
+            decoded = cloud.base64.b64decode(str(audio.get("data") or ""))
+            check("the inline clip is the recorded audio, not a placeholder",
+                  decoded[:4] == b"RIFF" and b"WAVE" in decoded[:16], repr(decoded[:16]))
+            check("the model is asked for a deterministic answer",
+                  (body.get("generationConfig") or {}).get("temperature") == 0)
+
+            other = cloud.CloudTranscriber(store, backend="groq")
+            try:
+                other.transcribe(np.zeros(1600, dtype=np.float32))
+            except cloud.CloudError as exc:
+                check("a Gemini key does not authorize Groq", "geen sleutel" in str(exc).lower(), str(exc))
+            else:
+                check("a Gemini key does not authorize Groq", False, "no error raised")
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_cloud_status() -> None:
+    """The window learns which providers have a key, never the key itself."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        store = cloud.CredentialStore(Path(tmp) / "credentials.json")
+        gemini_key = "AIza" + "y" * 35
+        store.set(gemini_key, "gemini")
+        local = cloud.status(store, "local")
+        gemini = cloud.status(store, "gemini")
+        groq = cloud.status(store, "groq")
+
+        check("the status lists both online providers",
+              set(gemini["providers"]) == {"groq", "gemini"}, str(sorted(gemini["providers"])))
+        check("settings and the providers offer the same backends",
+              set(settings_mod.ONLINE_BACKENDS) == {"local"} | set(cloud.PROVIDERS),
+              str(settings_mod.ONLINE_BACKENDS))
+        check("the chosen backend is reported", gemini["backend"] == "gemini" and gemini["has_key"])
+        check("keys are tracked per provider",
+              gemini["keys"] == {"groq": False, "gemini": True}, str(gemini["keys"]))
+        check("the other provider still shows no key", not groq["has_key"])
+        check("local needs no key",
+              local["backend"] == "local" and not local["has_key"] and local["model"] == "")
+        check("the card is told the Gemini model and key page",
+              gemini["model"] == cloud.GEMINI_MODEL
+              and gemini["keys_url"].startswith("https://")
+              and gemini["key_hint"] == "AIza...")
+        check("no key value reaches the window",
+              gemini_key not in json.dumps(gemini))
+        check("an unknown backend reports local",
+              cloud.status(store, "somewhere")["backend"] == "local")
 
 
 def test_updates() -> None:
@@ -1971,8 +2097,10 @@ def main() -> int:
     test_licence_notices()
     test_cloud_credentials()
     test_cloud_http()
+    test_gemini_http()
     test_cloud_failure_message()
     test_cloud_fallback()
+    test_cloud_status()
     test_updates()
     test_legacy_data_migration()
     test_history_stats()

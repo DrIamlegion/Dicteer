@@ -333,9 +333,16 @@ def main() -> int:
                 check("the key is encrypted on disk, not plain text", bool(raw_credentials) and fake_key not in raw_credentials)
                 check("the key is never pushed into the page",
                       fake_key not in str(evaluate(window, "document.body.innerHTML")))
-                boot_payload = json.dumps(shell.boot_payload())
-                check("the boot payload reports only whether a key exists",
-                      fake_key not in boot_payload and '"has_key": true' in boot_payload)
+                boot = shell.boot_payload()
+                boot_payload = json.dumps(boot)
+                check(
+                    "the boot payload reports only whether a key exists",
+                    fake_key not in boot_payload
+                    and boot["cloud"]["keys"]["groq"] is True
+                    # the app itself is still local, so no provider is active yet
+                    and boot["cloud"]["has_key"] is False,
+                    boot_payload[:200],
+                )
 
                 evaluate(
                     window,
@@ -400,6 +407,96 @@ def main() -> int:
                         pass
                     time.sleep(0.15)
                 check("the window can switch back to local", back_local)
+
+                # --- a second provider: Google Gemini ----------------------
+                evaluate(
+                    window,
+                    "(() => { const s=document.getElementById('set-backend'); s.value='gemini'; s.dispatchEvent(new Event('change')); })()",
+                )
+                check(
+                    "the key field follows the chosen provider",
+                    evaluate(window, "document.getElementById('cloud-key-label').textContent")
+                    == "Google Gemini API-sleutel",
+                    str(evaluate(window, "document.getElementById('cloud-key-label').textContent")),
+                )
+                check(
+                    "the free-tier facts and key page belong to Gemini",
+                    "Gratis tier" in str(evaluate(window, "document.getElementById('cloud-limits').textContent"))
+                    and "aistudio.google.com" in str(evaluate(window, "document.getElementById('cloud-keys-url').textContent")),
+                    str(evaluate(window, "document.getElementById('cloud-keys-url').textContent")),
+                )
+                gemini_key = "AIza" + "ui-test" * 6
+                evaluate(
+                    window,
+                    "(() => { const i = document.getElementById('set-cloud-key'); i.value = "
+                    + json.dumps(gemini_key)
+                    + "; document.getElementById('save-cloud-key').click(); })()",
+                )
+                gemini_key_saved = wait_js(
+                    window,
+                    "document.getElementById('cloud-key-status').textContent.includes('Sleutel opgeslagen')",
+                    True,
+                    8,
+                )
+                check("the Gemini key is stored under its own provider",
+                      gemini_key_saved and shell.credentials.has("gemini") and not shell.credentials.has("groq"))
+                check(
+                    "the online note names the Gemini model",
+                    wait_text(window, "#cloud-note", "gemini-3.8-flash", 5),
+                    str(evaluate(window, "document.getElementById('cloud-note').textContent")),
+                )
+                evaluate(window, "document.getElementById('save-settings').click()")
+                gemini_saved = False
+                for _ in range(60):
+                    try:
+                        if json.loads(config_path.read_text(encoding="utf-8")).get("online_backend") == "gemini":
+                            gemini_saved = True
+                            break
+                    except Exception:
+                        pass
+                    time.sleep(0.15)
+                check("the window can switch to the Gemini backend", gemini_saved)
+                check("the engine follows the setting without a restart",
+                      getattr(shell.dictator.cloud, "backend", "") == "gemini",
+                      str(getattr(shell.dictator.cloud, "backend", "")))
+                check("the engine reports the Gemini model for history",
+                      getattr(shell.dictator.cloud, "model", "") == "gemini-3.8-flash",
+                      str(getattr(shell.dictator.cloud, "model", "")))
+                check(
+                    "the About card names Gemini and its model",
+                    evaluate(window, "document.getElementById('about-engine').textContent")
+                    == "Google Gemini (online) · gemini-3.8-flash",
+                    str(evaluate(window, "document.getElementById('about-engine').textContent")),
+                )
+                raw_credentials = credentials_path.read_text(encoding="utf-8") if credentials_path.exists() else ""
+                check("the Gemini key is encrypted on disk too",
+                      bool(raw_credentials) and gemini_key not in raw_credentials)
+
+                evaluate(window, "document.getElementById('clear-cloud-key').click()")
+                gemini_cleared = wait_js(
+                    window,
+                    "document.getElementById('cloud-key-status').textContent.includes('Geen sleutel')",
+                    True,
+                    8,
+                )
+                check("the Gemini key can be removed again",
+                      gemini_cleared and not shell.credentials.has("gemini"))
+
+                evaluate(
+                    window,
+                    "(() => { const s=document.getElementById('set-backend'); s.value='local'; s.dispatchEvent(new Event('change')); })()",
+                )
+                evaluate(window, "document.getElementById('save-settings').click()")
+                back_local = False
+                for _ in range(60):
+                    try:
+                        if json.loads(config_path.read_text(encoding="utf-8")).get("online_backend") == "local":
+                            back_local = True
+                            break
+                    except Exception:
+                        pass
+                    time.sleep(0.15)
+                check("local stays reachable after trying Gemini", back_local)
 
                 # --- hotkey capture ----------------------------------------
                 evaluate(window, "document.getElementById('set-hotkey').click()")

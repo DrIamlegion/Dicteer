@@ -20,10 +20,10 @@ BrandingText "Dicteer"
 !include "x64.nsh"
 
 !ifndef APP_VERSION
-  !define APP_VERSION "2.0.8"
+  !define APP_VERSION "2.0.9"
 !endif
 !ifndef APP_FILEVERSION
-  !define APP_FILEVERSION "2.0.8.0"
+  !define APP_FILEVERSION "2.0.9.0"
 !endif
 
 !define APP_NAME "Dicteer"
@@ -100,8 +100,8 @@ LangString NeedWebView2 ${LANG_DUTCH} "Dicteer gebruikt de Microsoft Edge WebVie
 
 LangString NeedWebView2 ${LANG_ENGLISH} "Dicteer uses the Microsoft Edge WebView2 runtime for its window, and it does not appear to be installed.$\r$\n$\r$\nDo you want to open the download page? The app cannot start without it."
 
-LangString AskDeleteData ${LANG_DUTCH} "Wilt u ook uw dictaten, geschiedenis en instellingen verwijderen?$\r$\n$\r$\nJa verwijdert %APPDATA%\Dicteer definitief (geschiedenis, leerresultaten, opgeslagen Groq-sleutel, Whisper-modellen).$\r$\nNee laat ze staan, zodat een volgende installatie ze weer gebruikt."
-LangString AskDeleteData ${LANG_ENGLISH} "Do you also want to delete your dictations, history and settings?$\r$\n$\r$\nYes permanently deletes %APPDATA%\Dicteer (history, learned corrections, stored Groq key, Whisper models).$\r$\nNo keeps them, so a later installation can reuse them."
+LangString AskDeleteData ${LANG_DUTCH} "Wilt u ook uw dictaten, geschiedenis en instellingen verwijderen?$\r$\n$\r$\nJa verwijdert %APPDATA%\Dicteer definitief (geschiedenis, leerresultaten, opgeslagen API-sleutels, Whisper-modellen).$\r$\nNee laat ze staan, zodat een volgende installatie ze weer gebruikt."
+LangString AskDeleteData ${LANG_ENGLISH} "Do you also want to delete your dictations, history and settings?$\r$\n$\r$\nYes permanently deletes %APPDATA%\Dicteer (history, learned corrections, stored API keys, Whisper models).$\r$\nNo keeps them, so a later installation can reuse them."
 LangString UninstallRunning ${LANG_DUTCH} "Dicteer wordt afgesloten zodat de bestanden vervangen kunnen worden."
 LangString UninstallRunning ${LANG_ENGLISH} "Closing Dicteer so its files can be replaced."
 LangString RemovingLegacy ${LANG_DUTCH} "De oude versie (Freebuff Dictate) wordt verwijderd; uw gegevens blijven bewaard."

@@ -20,6 +20,7 @@ import time
 from pathlib import Path
 
 import autostart
+import cloud as cloud_mod
 import history as history_mod
 import settings as settings_mod
 
@@ -28,7 +29,7 @@ log = logging.getLogger("dictate")
 UI_DIR = Path(__file__).resolve().parent / "ui"
 ICON = Path(__file__).resolve().parent / "assets" / "icon.ico"
 TITLE = "Dicteer"
-APP_VERSION = "2.0.8"
+APP_VERSION = "2.0.9"
 
 DEFAULT_WIDTH = 1080
 DEFAULT_HEIGHT = 760
@@ -254,10 +255,12 @@ class Api:
     def save_settings(self, updates: dict) -> dict:
         try:
             new_cfg = settings_mod.apply_updates(self.shell.cfg, updates or {})
-            if new_cfg.get("online_backend") == "groq" and not self.shell.credentials.has("groq"):
+            backend = str(new_cfg.get("online_backend") or "local")
+            if backend != "local" and not self.shell.credentials.has(backend):
+                name = cloud_mod.PROVIDERS[backend]["name"]
                 return {
                     "ok": False,
-                    "error": "Sla eerst je gratis Groq-sleutel op voordat je online gaat.",
+                    "error": f"Sla eerst je gratis {name}-sleutel op voordat je online gaat.",
                 }
             settings_mod.save(self.shell.config_path, new_cfg)
             self.shell.apply_settings(new_cfg)
@@ -269,11 +272,11 @@ class Api:
         log.info("settings saved from the window")
         return {"ok": True, "settings": dict(new_cfg), "cloud": self.shell.cloud_status()}
 
-    def save_cloud_key(self, key: str) -> dict:
-        return self.shell.save_cloud_key(key)
+    def save_cloud_key(self, key: str, provider: str | None = None) -> dict:
+        return self.shell.save_cloud_key(key, provider)
 
-    def clear_cloud_key(self) -> dict:
-        return self.shell.clear_cloud_key()
+    def clear_cloud_key(self, provider: str | None = None) -> dict:
+        return self.shell.clear_cloud_key(provider)
 
     def cloud_status(self) -> dict:
         return self.shell.cloud_status()

@@ -87,7 +87,9 @@ class Shell:
         # The optional online key lives with the config too, encrypted by
         # Windows DPAPI. A throwaway config therefore also isolates its key.
         self.credentials = cloud_mod.CredentialStore(data_dir / "credentials.json")
-        self.dictator.cloud = cloud_mod.CloudTranscriber(self.credentials)
+        self.dictator.cloud = cloud_mod.CloudTranscriber(
+            self.credentials, backend=cfg.get("online_backend")
+        )
         self.dictator.on_notice = self.on_notice
         # Corrections are learned from edits in the window; the hooks make the
         # engine use them without the engine knowing anything about the UI.
@@ -151,29 +153,27 @@ class Shell:
         return history_mod.stats(self.history.items())
 
     def cloud_status(self) -> dict:
-        """What the window may know about the online key: never its value."""
-        backend = str(self.cfg.get("online_backend") or "local").strip().lower()
-        return {
-            "backend": backend if backend in settings_mod.ONLINE_BACKENDS else "local",
-            "provider": cloud_mod.PROVIDER,
-            "has_key": self.credentials.has(cloud_mod.PROVIDER),
-            "model": cloud_mod.GROQ_MODEL,
-            "free_limits": cloud_mod.FREE_LIMITS,
-            "keys_url": cloud_mod.GROQ_KEYS_URL,
-        }
+        """What the window may know about the online keys: never their values."""
+        return cloud_mod.status(self.credentials, self.cfg.get("online_backend"))
 
-    def save_cloud_key(self, key: str) -> dict:
+    def cloud_provider(self, provider: str | None = None) -> str:
+        """The provider a key belongs to: the one asked for, else the chosen one."""
+        name = str(provider or self.cfg.get("online_backend") or cloud_mod.PROVIDER).strip().lower()
+        return name if name in cloud_mod.PROVIDERS else cloud_mod.PROVIDER
+
+    def save_cloud_key(self, key: str, provider: str | None = None) -> dict:
+        name = self.cloud_provider(provider)
         try:
-            self.credentials.set(key)
+            self.credentials.set(key, name)
         except Exception as exc:
-            log.warning("could not store the Groq key: %s", exc)
+            log.warning("could not store the %s key: %s", name, exc)
             return {"ok": False, "error": str(exc), "cloud": self.cloud_status()}
         self.dictator.reset_cloud_warning()
-        log.info("Groq API key stored (encrypted)")
+        log.info("%s API key stored (encrypted)", name)
         return {"ok": True, "cloud": self.cloud_status()}
 
-    def clear_cloud_key(self) -> dict:
-        removed = self.credentials.clear(cloud_mod.PROVIDER)
+    def clear_cloud_key(self, provider: str | None = None) -> dict:
+        removed = self.credentials.clear(self.cloud_provider(provider))
         self.dictator.reset_cloud_warning()
         return {"ok": True, "removed": removed, "cloud": self.cloud_status()}
 

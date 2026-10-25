@@ -4,7 +4,7 @@
 Nothing here runs at startup: the Over view calls :func:`check` when the user
 presses the button, and that single request is the only network traffic the
 feature adds. The app otherwise stays offline apart from the model download and
-the optional Groq transcription.
+the optional online transcription.
 """
 
 from __future__ import annotations

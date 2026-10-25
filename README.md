@@ -13,8 +13,9 @@ leaving the PC, and the only network access is the one-time model download. The
 **Over** tab can ask GitHub whether a newer release exists, but only when you
 press that button; nothing is sent at startup.
 If you want more accuracy than the local `small` model, **Instellingen → Online
-model** can use Groq's free Whisper tier; only the finished utterance is then
-uploaded, and the preview plus fallback stay local. See [Online model](#online-model-gratis).
+model** can hand the final clip to Groq's free Whisper tier or to Google Gemini;
+only the finished utterance is then uploaded, and the preview plus fallback stay
+local. See [Online model](#online-model-gratis).
 
 The delivered configuration is **Dutch**: `"language": "nl"`, the multilingual
 `small` model for the text that gets pasted, and `base` for the live preview.
@@ -29,8 +30,8 @@ The delivered configuration is **Dutch**: `"language": "nl"`, the multilingual
   overlay when the window is closed.
 * **Tray app** - closing the window keeps dictation running; per-user installer,
   start with Windows, uninstaller that keeps or removes your data.
-* **Optional online model** - bring your own free Groq key for more accuracy;
-  the preview and the fallback stay local.
+* **Optional online model** - bring your own free Groq or Gemini key for more
+  accuracy; the preview and the fallback stay local.
 
 ---
 
@@ -50,7 +51,7 @@ machine-wide:
   answering no keeps them for a later install.
 
 The installed app keeps everything it writes - `config.json`, history, learned
-corrections, the encrypted Groq key, logs and the downloaded Whisper models -
+corrections, the encrypted API keys, logs and the downloaded Whisper models -
 in `%APPDATA%\Dicteer`, not in the program folder. Upgrading or
 uninstalling therefore never loses your data by accident, and **Map openen**
 and **Logbestand openen** in the app point at that folder.
@@ -134,8 +135,8 @@ learns (see below). Clear asks for a second click first.
 * hold-to-talk, overlay, live preview, beeps, trailing space, clipboard restore;
 * a **Leren** card with the switch for correction learning, the words the app
   learned, a field to add a word yourself, and a forget button per item;
-* an **Online model** card: local or Groq's free tier, with a field for the
-  encrypted API key and the free-tier limits;
+* an **Online model** card: local, Groq's free tier or Google Gemini, with a
+  field for that provider's encrypted API key, its model name and its limits;
 * **Start met Windows**, **Crashlog opslaan**, log/crashlog/folder buttons, and
   the path of `config.json`.
 * if the previous run ended unexpectedly and wrote a crash report, the next
@@ -147,7 +148,7 @@ non-English language is refused with a readable message and nothing is written.
 Changes are applied live — the hotkey is re-armed, the model reloads in the
 background when needed.
 
-**Over** — version, the active transcription engine (local Whisper or Groq),
+**Over** — version, the active transcription engine (local Whisper, Groq or Gemini),
 active models, where things live on disk, the quit button, and **Controleer op
 updates**: one request to the GitHub releases API, only when you click it. It
 reports the newest version and, when there is one, offers a **Downloaden**
@@ -263,29 +264,41 @@ losser, of corrigeer het in **Geschiedenis** — de app onthoudt die correctie.
 
 ## Online model (gratis)
 
-Groq's free Whisper tier runs `whisper-large-v3-turbo` — the same family as the
-local model, but a much larger network and therefore noticeably better at names,
-jargon and punctuation. It costs nothing within the free limits and needs no
-credit card.
+Two providers can take the final clip. Both are optional, both have a free tier
+that needs no credit card, and both leave the live preview on your machine.
+
+| | model | best for |
+| --- | --- | --- |
+| **Groq** | `whisper-large-v3-turbo` | the same family as the local model, but a much larger network: strong Dutch, fast, generous free limits |
+| **Google Gemini** | `gemini-3.8-flash` | better at names, jargon and sentence punctuation, and it follows the learned vocabulary as spelling instructions |
 
 **Turn it on**
 
-1. Create a key at <https://console.groq.com/keys> (a free Groq account).
-2. Open **Instellingen → Online model**, paste the key and click **Opslaan**.
-3. Set **Transcriptie** to **Groq gratis (online)** and click the page's
-   **Opslaan** button. The sidebar then shows *online* instead of *offline*.
+1. Create a key — Groq: <https://console.groq.com/keys>. Gemini:
+   <https://aistudio.google.com/app/apikey>.
+2. Open **Instellingen → Online model**, choose the provider in
+   **Transcriptie**, paste that provider's key and click **Opslaan**. The field,
+   the limits and the link follow whichever provider you picked, and each key is
+   stored separately.
+3. Click the page's **Opslaan** button. The sidebar then shows *online* instead
+   of *offline*.
+
+Switching between local, Groq and Gemini applies immediately, without a restart.
 
 **What leaves the PC**
 
 Only the finished clip of one dictation, as a 16 kHz mono WAV. The live preview
 never goes online: it would mean uploading audio every half second. The text is
 post-processed and delivered exactly like a local transcript. Learned words are
-sent as the prompt, so the self-learning layer also helps in the cloud.
+sent along: as Whisper's biasing prompt for Groq, and as "spell these names like
+this" instructions for Gemini.
 
-**Free limits** (Groq, October 2026): 20 requests/minute, 2,000/day, 7,200 audio
-seconds/hour and 28,800 audio seconds/day; uploads up to 25 MB. For normal
-dictation the daily allowance is hours of speech. Limits can change — the card
-in Settings shows the current wording.
+**Free limits** (October 2026). Groq: 20 requests/minute, 2,000/day, 7,200 audio
+seconds/hour and 28,800 audio seconds/day; uploads up to 25 MB. Gemini's free
+tier has no fixed public quota — the daily limit and speed depend on the model
+and are shown in [AI Studio](https://aistudio.google.com/rate-limit). For normal
+dictation either allowance is hours of speech. Limits can change; the card in
+Settings shows the current wording for the provider you selected.
 
 **If it fails, dictation continues**
 
@@ -296,10 +309,11 @@ again.
 
 **Key storage**
 
-The key is encrypted with the Windows Data Protection API (DPAPI) and written to
-`credentials.json` next to `config.json`. It is tied to your Windows account,
-never put in `config.json`, never logged and never returned to the window. Use
-**Sleutel verwijderen** in Settings (or delete `credentials.json`) to remove it.
+Each key is encrypted with the Windows Data Protection API (DPAPI) and written to
+`credentials.json` next to `config.json`, under its own provider name. A key is
+tied to your Windows account, never put in `config.json`, never logged and never
+returned to the window. Use **Sleutel verwijderen** in Settings (or delete
+`credentials.json`) to remove them.
 
 **No account?** The local model list now includes `large-v3-turbo`: about 1.6 GB
 to download, materially better than `small`, and completely offline. It is
@@ -315,6 +329,7 @@ mic (44.1/48 kHz) -> box-average decimation to 16 kHz -> faster-whisper (CTransl
    -> text -> clipboard -> simulated Ctrl+V into the focused window
 
 optional: the final clip -> Groq (whisper-large-v3-turbo) -> text
+                         or Gemini (gemini-3.8-flash) -> text
           on any error -> the local path above
 ```
 
@@ -366,13 +381,13 @@ optional: the final clip -> Groq (whisper-large-v3-turbo) -> text
 | `min_seconds` | `0.35` | Shorter clips are discarded as accidental taps. |
 | `beeps` | `true` | Audio feedback (useful when the window is hidden). |
 | `learn_from_corrections` | `true` | Learn spelling corrections from edits in Geschiedenis. Existing learning stays active when off. |
-| `crash_logging` | `true` | Write unhandled exceptions and fatal native crashes to `crash.log`. The report has a traceback and app/OS details, never dictation text, clipboard contents or the Groq key. |
-| `online_backend` | `"local"` | `local` keeps all audio on the PC. `groq` sends only the finished clip to Groq's free Whisper tier. |
-| `online_timeout_seconds` | `30` | How long to wait for Groq before falling back to the local model. |
+| `crash_logging` | `true` | Write unhandled exceptions and fatal native crashes to `crash.log`. The report has a traceback and app/OS details, never dictation text, clipboard contents or an API key. |
+| `online_backend` | `"local"` | `local` keeps all audio on the PC. `groq` sends only the finished clip to Groq's free Whisper tier; `gemini` sends it to Google Gemini's free tier. |
+| `online_timeout_seconds` | `30` | How long to wait for the online provider before falling back to the local model. |
 
 Editing `config.json` by hand requires a restart; the window applies and writes
 it for you. `ui-state.json` (window size/position), `learning.json` (learned
-corrections), `credentials.json` (the encrypted Groq key, if you use one),
+corrections), `credentials.json` (the encrypted API keys, if you use any),
 `crash.log` (when crash logging is on) and the temporary `crash-run.json` run
 marker are created next to it; delete the first to re-centre the window,the second to forget everything learned, the third to remove the online key, and
 the fourth to clear the crash history. A `history.json` or `learning.json` that
@@ -551,7 +566,7 @@ verification result for every file. The certificate password is read from
 certificate the build still succeeds, with a warning that the installer is
 unsigned.
 
-Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.8.exe`:
+Check a result with `Get-AuthenticodeSignature dist\Dicteer-Setup-2.0.9.exe`:
 the status is `Valid` once Windows trusts the chain. SmartScreen is a separate
 matter: the prompt fades only as the publisher's reputation grows, and that is
 as true for EV certificates as for OV ones.
@@ -571,8 +586,8 @@ by [SignPath Foundation](https://signpath.org/).
 
 This program will not transfer any information to other networked systems
 unless specifically requested by the user or the person installing or operating
-it. The optional Groq backend is off by default; audio leaves the machine only
-after the user selects it and stores their own key.
+it. The optional Groq and Gemini backends are off by default; audio leaves the
+machine only after the user selects one and stores their own key.
 
 ### Signing releases with SignPath Foundation
 

@@ -28,7 +28,7 @@ MODELS = [
 ]
 LANGUAGES = ["en", "nl", "de", "fr", "es", "it", "pt", "auto"]
 MODES = ("paste", "type", "clipboard")
-ONLINE_BACKENDS = ("local", "groq")
+ONLINE_BACKENDS = ("local", "groq", "gemini")
 
 
 class SettingsError(ValueError):
@@ -106,7 +106,7 @@ def apply_updates(current: dict, updates: dict) -> dict:
 
     backend = str(cfg.get("online_backend") or "local").strip().lower()
     if backend not in ONLINE_BACKENDS:
-        raise SettingsError("Online model moet lokaal of Groq zijn")
+        raise SettingsError("Online model moet lokaal, Groq of Gemini zijn")
 
     device = cfg.get("input_device")
     if isinstance(device, str):

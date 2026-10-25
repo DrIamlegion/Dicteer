@@ -20,9 +20,9 @@
     listening: true,
     current: "idle",
     hotkeyLabel: "F9",
-    version: "2.0.8",
+    version: "2.0.9",
     models: [],
-    cloud: { backend: "local", has_key: false, model: "whisper-large-v3-turbo", free_limits: "", keys_url: "" },
+    cloud: { backend: "local", has_key: false, keys: {}, providers: {}, model: "", free_limits: "", keys_url: "" },
     configPath: "",
     modelDir: "",
     crashLogPath: "",
@@ -312,7 +312,7 @@
   function renderBrand() {
     const language = state.settings.language || "auto";
     const label = LANGUAGE_LABELS[language] || language;
-    const online = state.cloud && state.cloud.backend === "groq" && state.cloud.has_key;
+    const online = state.cloud && state.cloud.backend !== "local" && state.cloud.has_key;
     $("brand-sub").textContent = `${label} · ${online ? "online" : "offline"}`;
     document.querySelectorAll("#hotkey-kbd").forEach((el) => {
       el.textContent = state.hotkeyLabel;
@@ -1007,20 +1007,50 @@
     renderAbout();
   }
 
-  function renderCloud() {
+  function providerMeta(provider) {
     const cloud = state.cloud || {};
+    return ((cloud.providers || {})[provider]) || {};
+  }
+
+  function keyPresent(backend) {
+    const cloud = state.cloud || {};
+    if (cloud.keys && Object.prototype.hasOwnProperty.call(cloud.keys, backend)) {
+      return Boolean(cloud.keys[backend]);
+    }
+    return Boolean(cloud.has_key) && cloud.backend === backend;
+  }
+
+  // A key belongs to the provider it was made for; while the app is still on
+  // "local" the field keeps pointing at Groq, as it always did.
+  function currentProvider() {
     const backend = $("set-backend").value || "local";
-    const hasKey = Boolean(cloud.has_key);
+    return backend === "local" ? "groq" : backend;
+  }
+
+  function renderCloud() {
+    const backend = $("set-backend").value || "local";
+    const provider = currentProvider();
+    const meta = providerMeta(provider);
+    const online = backend !== "local";
+    const name = meta.name || "online";
+    const hasKey = keyPresent(provider);
     const note = $("cloud-note");
     const status = $("cloud-key-status");
     const hint = $("backend-hint");
-    $("cloud-limits").textContent = cloud.free_limits || "20 verzoeken/min · 2.000/dag · 7.200 audio-seconden/uur";
 
-    if (backend === "groq") {
-      note.textContent = hasKey ? `online · ${cloud.model || "Groq"}` : "online · sleutel nodig";
+    $("cloud-key-label").textContent = `${name} API-sleutel`;
+    $("set-cloud-key").placeholder = meta.key_hint || "API-sleutel";
+    $("cloud-limits").textContent = meta.free_limits || "Zie de limieten van je provider.";
+    $("cloud-keys-url").textContent = String(meta.keys_url || "").replace(/^https?:\/\//, "");
+    $("cloud-privacy-text").textContent = online
+      ? `Alleen de audio van je laatste dictaat gaat naar ${name}; het live voorbeeld blijft lokaal. Zonder sleutel of bij een fout valt de app terug op het lokale model.`
+      : "Er gaat niets online: audio en tekst blijven op deze pc. Kies een online model als namen en jargon er beter uit moeten komen.";
+
+    if (online) {
+      note.textContent = hasKey ? `online · ${meta.model || name}` : "online · sleutel nodig";
       hint.textContent = hasKey
-        ? "De eindtekst komt van Groq; het live voorbeeld blijft lokaal. Bij een fout valt de app terug op lokaal."
-        : "Sla eerst een gratis Groq-sleutel op; daarna kun je online kiezen.";
+        ? `De eindtekst komt van ${name}; het live voorbeeld blijft lokaal. Bij een fout valt de app terug op lokaal.`
+        : `Sla eerst een gratis ${name}-sleutel op; daarna kun je online kiezen.`;
       hint.classList.toggle("warn", !hasKey);
     } else {
       note.textContent = "lokaal";
@@ -1031,7 +1061,7 @@
     status.textContent = hasKey
       ? "Sleutel opgeslagen (versleuteld met Windows DPAPI)."
       : "Geen sleutel opgeslagen.";
-    status.classList.toggle("warn", backend === "groq" && !hasKey);
+    status.classList.toggle("warn", online && !hasKey);
     $("clear-cloud-key").hidden = !hasKey;
   }
 
@@ -1149,17 +1179,19 @@
   }
 
   async function saveCloudKey() {
+    const provider = currentProvider();
+    const name = providerMeta(provider).name || "online";
     const input = $("set-cloud-key");
     const key = input.value.trim();
     if (!key) {
-      toast("Plak eerst een Groq-sleutel", "error");
+      toast(`Plak eerst een ${name}-sleutel`, "error");
       input.focus();
       return;
     }
     const button = $("save-cloud-key");
     button.disabled = true;
     try {
-      const result = await api.save_cloud_key(key);
+      const result = await api.save_cloud_key(key, provider);
       if (!result || !result.ok) {
         toast((result && result.error) || "Sleutel opslaan mislukt", "error");
         return;
@@ -1169,7 +1201,7 @@
       renderCloud();
       renderBrand();
       renderAbout();
-      toast("Groq-sleutel opgeslagen", "ok");
+      toast(`${name}-sleutel opgeslagen`, "ok");
     } catch (err) {
       toast("Sleutel opslaan mislukt: " + (err && err.message ? err.message : err), "error");
     } finally {
@@ -1178,8 +1210,10 @@
   }
 
   async function clearCloudKey() {
+    const provider = currentProvider();
+    const name = providerMeta(provider).name || "online";
     try {
-      const result = await api.clear_cloud_key();
+      const result = await api.clear_cloud_key(provider);
       if (!result || result.ok === false) {
         toast((result && result.error) || "Sleutel verwijderen mislukt", "error");
         return;
@@ -1188,7 +1222,7 @@
       renderCloud();
       renderBrand();
       renderAbout();
-      toast("Groq-sleutel verwijderd", "ok");
+      toast(`${name}-sleutel verwijderd`, "ok");
     } catch (err) {
       toast("Sleutel verwijderen mislukt", "error");
     }
@@ -1199,17 +1233,16 @@
     $("about-version").textContent = state.version;
     $("update-current").textContent = state.version;
     const backend = (state.cloud && state.cloud.backend) || s.online_backend || "local";
-    const hasKey = Boolean(state.cloud && state.cloud.has_key);
-    const onlineEngine = backend === "groq" && hasKey;
-    const engineModel = onlineEngine
-      ? (state.cloud && state.cloud.model) || "whisper-large-v3-turbo"
-      : (s.model || "—");
-    $("about-engine").textContent = `${onlineEngine ? "Groq (online)" : "Lokaal (Whisper)"} · ${engineModel}`;
+    const meta = providerMeta(backend);
+    const name = meta.name || "online";
+    const onlineEngine = backend !== "local" && keyPresent(backend);
+    const engineModel = onlineEngine ? (meta.model || name) : (s.model || "—");
+    $("about-engine").textContent = `${onlineEngine ? `${name} (online)` : "Lokaal (Whisper)"} · ${engineModel}`;
     let pitch = "Een kleine, snelle dicteerhulp met Whisper op je eigen computer. Alles blijft lokaal; je stem verlaat de pc niet.";
-    if (backend === "groq" && hasKey) {
-      pitch = "Een kleine, snelle dicteerhulp. De eindtekst komt nu van Groq; alleen de audio van je laatste dictaat gaat online. Het live voorbeeld blijft lokaal.";
-    } else if (backend === "groq") {
-      pitch = "Een kleine, snelle dicteerhulp met Whisper op je eigen computer. Online is gekozen, maar er is nog geen Groq-sleutel; daarom blijft alles lokaal.";
+    if (onlineEngine) {
+      pitch = `Een kleine, snelle dicteerhulp. De eindtekst komt nu van ${name}; alleen de audio van je laatste dictaat gaat online. Het live voorbeeld blijft lokaal.`;
+    } else if (backend !== "local") {
+      pitch = `Een kleine, snelle dicteerhulp met Whisper op je eigen computer. Online is gekozen, maar er is nog geen ${name}-sleutel; daarom blijft alles lokaal.`;
     }
     $("about-pitch").textContent = pitch;
     $("about-model").textContent = s.model || "—";
@@ -1728,15 +1761,35 @@
       max_seconds: 120, min_seconds: 0.35, beeps: true, online_backend: "local",
       crash_logging: true,
     };
-    let cloudKey = "";
-    const cloudPayload = () => ({
-      backend: settings.online_backend || "local",
-      provider: "groq",
-      has_key: Boolean(cloudKey),
-      model: "whisper-large-v3-turbo",
-      free_limits: "20 verzoeken/min · 2.000/dag · 7.200 audio-seconden/uur",
-      keys_url: "https://console.groq.com/keys",
-    });
+    const PROVIDER_META = {
+      groq: {
+        name: "Groq", model: "whisper-large-v3-turbo",
+        free_limits: "20 verzoeken/min · 2.000/dag · 7.200 audio-seconden/uur",
+        keys_url: "https://console.groq.com/keys", key_hint: "gsk_...",
+      },
+      gemini: {
+        name: "Google Gemini", model: "gemini-3.8-flash",
+        free_limits: "Gratis tier · daglimiet en snelheid verschillen per model (zie AI Studio)",
+        keys_url: "https://aistudio.google.com/app/apikey", key_hint: "AIza...",
+      },
+    };
+    const cloudKeys = { groq: false, gemini: false };
+    const cloudPayload = () => {
+      const backend = settings.online_backend || "local";
+      const meta = PROVIDER_META[backend] || {};
+      return {
+        backend,
+        provider: backend === "local" ? "groq" : backend,
+        name: meta.name || "Lokaal (Whisper)",
+        model: meta.model || "",
+        free_limits: meta.free_limits || "",
+        keys_url: meta.keys_url || "",
+        key_hint: meta.key_hint || "",
+        has_key: Boolean(cloudKeys[backend]),
+        keys: { ...cloudKeys },
+        providers: PROVIDER_META,
+      };
+    };
     const demo = "Maak de dicteerknop duidelijker en toon de status van de microfoon.";
     const clear = () => { timers.forEach(clearTimeout); timers = []; };
     const emit = (event) => window.dictate.push(event);
@@ -1752,7 +1805,7 @@
             { id: "Microfoon (USB-headset)", name: "Microfoon (USB-headset)", label: "Microfoon (USB-headset)", index: 3, default: false, api: "Windows WASAPI", rate: 48000 },
           ],
           cloud: cloudPayload(),
-          autostart: false, hotkey_label: "F9", version: "2.0.8 (demo)",
+          autostart: false, hotkey_label: "F9", version: "2.0.9 (demo)",
           crash_log_path: "crash.log (demo)",
           models: MODEL_ORDER.concat(["tiny", "base", "small", "medium"].map((name) => `${name}.en`)),
           model_dir: "C:\\Users\\gebruiker\\AppData\\Roaming\\Dicteer\\models",
@@ -1792,21 +1845,25 @@
         if (!/^<f\d+>$|^<ctrl>|^<alt>|^<shift>/i.test(updates.hotkey || "")) {
           return { ok: false, error: "Sneltoets is geen geldige combinatie." };
         }
-        if (updates.online_backend === "groq" && !cloudKey) {
-          return { ok: false, error: "Sla eerst je gratis Groq-sleutel op voordat je online gaat." };
+        if (updates.online_backend !== "local" && !cloudKeys[updates.online_backend]) {
+          const name = (PROVIDER_META[updates.online_backend] || {}).name || "online";
+          return { ok: false, error: `Sla eerst je gratis ${name}-sleutel op voordat je online gaat.` };
         }
         Object.assign(settings, updates);
         return { ok: true, settings: { ...settings }, cloud: cloudPayload() };
       },
-      async save_cloud_key(key) {
+      async save_cloud_key(key, provider) {
         const clean = String(key || "").trim();
         if (clean.length < 20) return { ok: false, error: "Dit lijkt geen geldige API-sleutel.", cloud: cloudPayload() };
-        cloudKey = clean;
+        const name = provider in PROVIDER_META ? provider : "groq";
+        cloudKeys[name] = true;
         return { ok: true, cloud: cloudPayload() };
       },
-      async clear_cloud_key() {
-        cloudKey = "";
-        return { ok: true, removed: true, cloud: cloudPayload() };
+      async clear_cloud_key(provider) {
+        const name = provider in PROVIDER_META ? provider : "groq";
+        const removed = cloudKeys[name];
+        cloudKeys[name] = false;
+        return { ok: true, removed, cloud: cloudPayload() };
       },
       async cloud_status() { return cloudPayload(); },
       async validate_hotkey(hotkey) {
@@ -1899,7 +1956,7 @@
         await new Promise((resolve) => setTimeout(resolve, 350));
         return {
           ok: true,
-          current: "2.0.8",
+          current: "2.0.9",
           latest: "2.1.0",
           available: true,
           name: "Dicteer v2.1.0",
